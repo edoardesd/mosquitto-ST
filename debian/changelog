@@ -1,3 +1,6 @@
+  * Bumped standards version to 3.9.8. No changes needed.
+  * Bumped dh compat level to 10.
+
 mosquitto (1.4.10-1) unstable; urgency=low
 
   * New upstream release.
