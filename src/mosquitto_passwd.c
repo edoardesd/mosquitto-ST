@@ -90,7 +90,11 @@ int output_new_password(FILE *fptr, const char *username, const char *password)
 	unsigned char hash[EVP_MAX_MD_SIZE];
 	unsigned int hash_len;
 	const EVP_MD *digest;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	EVP_MD_CTX context;
+#else
+	EVP_MD_CTX *context;
+#endif
 
 	rc = RAND_bytes(salt, SALT_LEN);
 	if(!rc){
@@ -113,12 +117,21 @@ int output_new_password(FILE *fptr, const char *username, const char *password)
 		return 1;
 	}
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	EVP_MD_CTX_init(&context);
 	EVP_DigestInit_ex(&context, digest, NULL);
 	EVP_DigestUpdate(&context, password, strlen(password));
 	EVP_DigestUpdate(&context, salt, SALT_LEN);
 	EVP_DigestFinal_ex(&context, hash, &hash_len);
 	EVP_MD_CTX_cleanup(&context);
+#else
+	context = EVP_MD_CTX_new();
+	EVP_DigestInit_ex(context, digest, NULL);
+	EVP_DigestUpdate(context, password, strlen(password));
+	EVP_DigestUpdate(context, salt, SALT_LEN);
+	EVP_DigestFinal_ex(context, hash, &hash_len);
+	EVP_MD_CTX_free(context);
+#endif
 
 	rc = base64_encode(hash, hash_len, &hash64);
 	if(rc){
@@ -369,6 +382,7 @@ int main(int argc, char *argv[])
 			batch_mode = true;
 		}else{
 			fprintf(stderr, "Error: Unknown option '%s'\n", argv[1]);
+			return 1;
 		}
 		password_file_tmp = argv[2];
 		username = argv[3];

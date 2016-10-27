@@ -180,7 +180,7 @@ int mqtt3_handle_connect(struct mosquitto_db *db, struct mosquitto *context)
 		rc = MOSQ_ERR_PROTOCOL;
 		goto handle_connect_error;
 	}
-	will_retain = connect_flags & 0x20;
+	will_retain = ((connect_flags & 0x20) == 0x20); // Temporary hack because MSVC<1800 doesn't have stdbool.h.
 	password_flag = connect_flags & 0x40;
 	username_flag = connect_flags & 0x80;
 
@@ -243,7 +243,7 @@ int mqtt3_handle_connect(struct mosquitto_db *db, struct mosquitto *context)
 		}
 
 		if(context->listener && context->listener->mount_point){
-			slen = strlen(context->listener->mount_point) + strlen(will_topic);
+			slen = strlen(context->listener->mount_point) + strlen(will_topic) + 1;
 			will_topic_mount = _mosquitto_malloc(slen+1);
 			if(!will_topic_mount){
 				rc = MOSQ_ERR_NOMEM;
@@ -364,7 +364,7 @@ int mqtt3_handle_connect(struct mosquitto_db *db, struct mosquitto *context)
 				goto handle_connect_error;
 			}
 			name_entry = X509_NAME_get_entry(name, i);
-			context->username = _mosquitto_strdup((char *)ASN1_STRING_data(name_entry->value));
+			context->username = _mosquitto_strdup((char *)ASN1_STRING_data(X509_NAME_ENTRY_get_data(name_entry)));
 			if(!context->username){
 				rc = 1;
 				goto handle_connect_error;
@@ -456,6 +456,7 @@ int mqtt3_handle_connect(struct mosquitto_db *db, struct mosquitto *context)
 			found_context->subs = NULL;
 			context->sub_count = found_context->sub_count;
 			found_context->sub_count = 0;
+			context->last_mid = found_context->last_mid;
 
 			for(i=0; i<context->sub_count; i++){
 				if(context->subs[i]){
@@ -549,6 +550,9 @@ int mqtt3_handle_connect(struct mosquitto_db *db, struct mosquitto *context)
 					msg_tail = msg_prev->next;
 				}else{
 					context->msgs = context->msgs->next;
+					if(context->last_msg == msg_tail){
+						context->last_msg = NULL;
+					}
 					_mosquitto_free(msg_tail);
 					msg_tail = context->msgs;
 				}

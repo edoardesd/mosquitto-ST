@@ -168,7 +168,8 @@ static int callback_mqtt(struct libwebsocket_context *context,
 	struct mosquitto_db *db;
 	struct mosquitto *mosq = NULL;
 	struct _mosquitto_packet *packet;
-	int count;
+	int count, i, j;
+	const struct libwebsocket_protocols *p;
 	struct libws_mqtt_data *u = (struct libws_mqtt_data *)user;
 	size_t pos;
 	uint8_t *buf;
@@ -181,6 +182,18 @@ static int callback_mqtt(struct libwebsocket_context *context,
 		case LWS_CALLBACK_ESTABLISHED:
 			mosq = mqtt3_context_init(db, WEBSOCKET_CLIENT);
 			if(mosq){
+				p = libwebsocket_get_protocol(wsi);
+				for (i=0; i<db->config->listener_count; i++){
+					if (db->config->listeners[i].protocol == mp_websockets) {
+						for (j=0; db->config->listeners[i].ws_protocol[j].name; j++){
+							if (p == &db->config->listeners[i].ws_protocol[j]){
+								mosq->listener = &db->config->listeners[i];
+								mosq->listener->client_count++;
+							}
+						}
+					}
+				}
+
 #if !defined(LWS_LIBRARY_VERSION_NUMBER)
 				mosq->ws_context = context;
 #endif
@@ -217,6 +230,8 @@ static int callback_mqtt(struct libwebsocket_context *context,
 			if(!mosq || mosq->state == mosq_cs_disconnect_ws || mosq->state == mosq_cs_disconnecting){
 				return -1;
 			}
+
+			mqtt3_db_message_write(db, mosq);
 
 			if(mosq->out_packet && !mosq->current_out_packet){
 				mosq->current_out_packet = mosq->out_packet;
@@ -265,7 +280,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 				_mosquitto_packet_cleanup(packet);
 				_mosquitto_free(packet);
 
-				mosq->last_msg_out = mosquitto_time();
+				mosq->next_msg_out = mosquitto_time() + mosq->keepalive;
 
 				if(mosq->current_out_packet){
 					libwebsocket_callback_on_writable(mosq->ws_context, mosq->wsi);
@@ -582,6 +597,7 @@ struct libwebsocket_context *mosq_websockets_init(struct _mqtt3_listener *listen
 	}
 
 	memset(&info, 0, sizeof(info));
+	info.iface = listener->host;
 	info.port = listener->port;
 	info.protocols = p;
 	info.gid = -1;
@@ -599,6 +615,9 @@ struct libwebsocket_context *mosq_websockets_init(struct _mqtt3_listener *listen
 #endif
 #ifndef LWS_IS_OLD
 	info.options |= LWS_SERVER_OPTION_DISABLE_IPV6;
+#endif
+#if LWS_LIBRARY_VERSION_MAJOR>1
+	info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 #endif
 
 	user = _mosquitto_calloc(1, sizeof(struct libws_mqtt_hack));

@@ -278,7 +278,7 @@ int mosquitto_acl_check_default(struct mosquitto_db *db, struct mosquitto *conte
 			ulen = 0;
 			len = tlen + acl_root->ccount*(clen-2);
 		}
-		local_acl = malloc(len+1);
+		local_acl = _mosquitto_malloc(len+1);
 		if(!local_acl) return 1; // FIXME
 		s = local_acl;
 		for(i=0; i<tlen; i++){
@@ -770,6 +770,7 @@ int mosquitto_psk_key_get_default(struct mosquitto_db *db, const char *hint, con
 int _pw_digest(const char *password, const unsigned char *salt, unsigned int salt_len, unsigned char *hash, unsigned int *hash_len)
 {
 	const EVP_MD *digest;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	EVP_MD_CTX context;
 
 	digest = EVP_get_digestbyname("sha512");
@@ -785,6 +786,23 @@ int _pw_digest(const char *password, const unsigned char *salt, unsigned int sal
 	/* hash is assumed to be EVP_MAX_MD_SIZE bytes long. */
 	EVP_DigestFinal_ex(&context, hash, hash_len);
 	EVP_MD_CTX_cleanup(&context);
+#else
+	EVP_MD_CTX *context;
+
+	digest = EVP_get_digestbyname("sha512");
+	if(!digest){
+		// FIXME fprintf(stderr, "Error: Unable to create openssl digest.\n");
+		return 1;
+	}
+
+	context = EVP_MD_CTX_new();
+	EVP_DigestInit_ex(context, digest, NULL);
+	EVP_DigestUpdate(context, password, strlen(password));
+	EVP_DigestUpdate(context, salt, salt_len);
+	/* hash is assumed to be EVP_MAX_MD_SIZE bytes long. */
+	EVP_DigestFinal_ex(context, hash, hash_len);
+	EVP_MD_CTX_free(context);
+#endif
 
 	return MOSQ_ERR_SUCCESS;
 }
@@ -803,7 +821,7 @@ int _base64_decode(char *in, unsigned char **decoded, unsigned int *decoded_len)
 		BIO_free_all(b64);
 		return 1;
 	}
-	*decoded = calloc(strlen(in), 1);
+	*decoded = _mosquitto_calloc(strlen(in), 1);
 	*decoded_len =  BIO_read(b64, *decoded, strlen(in));
 	BIO_free_all(b64);
 
