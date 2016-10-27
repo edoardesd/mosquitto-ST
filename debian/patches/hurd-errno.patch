@@ -1,0 +1,14 @@
+Description: Fix FTBFS on Hurd (bug: 424571)
+Author: Roger Light <roger@atchoo.org>
+Forwarded: yes
+--- a/config.h
++++ b/config.h
+@@ -27,6 +27,8 @@
+ #define uthash_malloc(sz) _mosquitto_malloc(sz)
+ #define uthash_free(ptr,sz) _mosquitto_free(ptr)
+ 
++#include <errno.h>
++
+ #ifndef EPROTO
+ #  define EPROTO ECONNABORTED
+ #endif

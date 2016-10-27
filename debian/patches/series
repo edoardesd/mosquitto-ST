@@ -5,3 +5,4 @@ disable-in-tree-uthash.patch
 enable-websockets.patch
 libdir.patch
 build-timestamp.patch
+hurd-errno.patch

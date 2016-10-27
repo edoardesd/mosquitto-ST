@@ -1,3 +1,11 @@
+mosquitto (1.4.10-1) unstable; urgency=low
+
+  * New upstream release.
+  * Add support for openssl 1.1.0 (closes: #828442)
+  * Fix FTBFS on Hurd (closes: #824571)
+
+ -- Roger A. Light <roger@atchoo.org>  Thu, 27 Oct 2016 14:01:40 +0100
+
 mosquitto (1.4.8-1) unstable; urgency=high
 
   * New upstream release.
