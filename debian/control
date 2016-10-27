@@ -12,8 +12,8 @@ Build-Depends: debhelper (>= 10),
                uuid-dev
 Standards-Version: 3.9.8
 Homepage: http://mosquitto.org/
-Vcs-Git: https://git.eclipse.org/r/mosquitto/org.eclipse.mosquitto
-Vcs-Browser: http://git.eclipse.org/c/mosquitto/org.eclipse.mosquitto.git
+Vcs-Git: https://github.com/eclipse/mosquitto
+Vcs-Browser: https://github.com/eclipse/mosquitto/tree/debian
 
 Package: mosquitto
 Architecture: any
