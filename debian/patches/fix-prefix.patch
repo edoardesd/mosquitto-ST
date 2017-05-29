@@ -3,7 +3,7 @@ Author: Roger Light <roger@atchoo.org>
 Forwarded: not-needed
 --- a/config.mk
 +++ b/config.mk
-@@ -241,7 +241,7 @@
+@@ -249,7 +249,7 @@
  endif
  
  INSTALL?=install

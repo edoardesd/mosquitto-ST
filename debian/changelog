@@ -1,6 +1,29 @@
+mosquitto (1.4.12-1) experimental; urgency=low
+
+  * New upstream release.
+
+ -- Roger A. Light <roger@atchoo.org>  Mon, 29 May 2017 14:56:32 +0100
+
+mosquitto (1.4.10-3) unstable; urgency=high
+
+  * SECURITY UPDATE: Pattern ACL can be bypassed by using a username/client id
+    set to '+' or '#'.
+    - debian/patches/mosquitto-0.15_cve-2017-7650.patch: Reject send/receive
+      of messages to/from clients with a '+', '#' or '/' in their
+      username/client id.
+    - CVE-2017-7650
+  * New patch debian/patches/allow_ipv6_bridges.patch allows bridges to make
+    IPv6 connections when using TLS (closes: #857759).
+
+ -- Roger A. Light <roger@atchoo.org>  Mon, 29 May 2017 13:43:29 +0100
+
+mosquitto (1.4.10-2) unstable; urgency=medium
+
   * Bumped standards version to 3.9.8. No changes needed.
   * Bumped dh compat level to 10.
   * Vcs-* links updated.
+
+ -- Roger A. Light <roger@atchoo.org>  Thu, 03 Nov 2016 22:37:33 +0000
 
 mosquitto (1.4.10-1) unstable; urgency=low
 
