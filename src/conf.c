@@ -36,7 +36,7 @@ Contributors:
 #endif
 
 #if !defined(WIN32) && !defined(__CYGWIN__)
-#  include <sys/syslog.h>
+#  include <syslog.h>
 #endif
 
 #include <mosquitto_broker.h>
@@ -309,7 +309,7 @@ void mqtt3_config_cleanup(struct mqtt3_config *config)
 static void print_usage(void)
 {
 	printf("mosquitto version %s (build date %s)\n\n", VERSION, TIMESTAMP);
-	printf("mosquitto is an MQTT v3.1 broker.\n\n");
+	printf("mosquitto is an MQTT v3.1.1/v3.1 broker.\n\n");
 	printf("Usage: mosquitto [-c config_file] [-d] [-h] [-p port]\n\n");
 	printf(" -c : specify the broker config file.\n");
 	printf(" -d : put the broker into the background after starting.\n");
@@ -916,6 +916,14 @@ int _config_read_file_core(struct mqtt3_config *config, bool reload, const char 
 					if(reload) continue; // FIXME
 					token = strtok_r(NULL, " ", &saveptr);
 					if(token){
+						/* Check for existing bridge name. */
+						for(i=0; i<config->bridge_count; i++){
+							if(!strcmp(config->bridges[i].name, token)){
+								_mosquitto_log_printf(NULL, MOSQ_LOG_ERR, "Error: Duplicate bridge name \"%s\".", token);
+								return MOSQ_ERR_INVAL;
+							}
+						}
+
 						config->bridge_count++;
 						config->bridges = _mosquitto_realloc(config->bridges, config->bridge_count*sizeof(struct _mqtt3_bridge));
 						if(!config->bridges){

@@ -79,6 +79,16 @@ static int mqtt3_db_client_messages_write(struct mosquitto_db *db, FILE *db_fptr
 
 	cmsg = context->msgs;
 	while(cmsg){
+		if(!strncmp(cmsg->store->topic, "$SYS", 4)
+				&& cmsg->store->ref_count <= 1
+				&& cmsg->store->dest_id_count == 0){
+
+			/* This $SYS message won't have been persisted, so we can't persist
+			 * this client message. */
+			cmsg = cmsg->next;
+			continue;
+		}
+
 		slen = strlen(context->id);
 
 		length = htonl(sizeof(dbid_t) + sizeof(uint16_t) + sizeof(uint8_t) +
@@ -813,7 +823,14 @@ int mqtt3_db_restore(struct mosquitto_db *db)
 
 	fptr = _mosquitto_fopen(db->config->persistence_filepath, "rb");
 	if(fptr == NULL) return MOSQ_ERR_SUCCESS;
-	read_e(fptr, &header, 15);
+	rlen = fread(&header, 1, 15, fptr);
+	if(rlen == 0){
+		fclose(fptr);
+		_mosquitto_log_printf(NULL, MOSQ_LOG_WARNING, "Warning: Persistence file is empty.");
+		return 0;
+	}else if(rlen != 15){
+		goto error;
+	}
 	if(!memcmp(header, magic, 15)){
 		// Restore DB as normal
 		read_e(fptr, &crc, sizeof(uint32_t));

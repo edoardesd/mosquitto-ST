@@ -31,7 +31,7 @@ Contributors:
 #    define libwebsocket_write(A, B, C, D) lws_write((A), (B), (C), (D))
 #    define libwebsocket_get_socket_fd(A) lws_get_socket_fd((A))
 #    define libwebsockets_return_http_status(A, B, C, D) lws_return_http_status((B), (C), (D))
-#    define libwebsocket_get_protocol(A) lws_get_protocol((A))
+#    define libwebsockets_get_protocol(A) lws_get_protocol((A))
 
 #    define libwebsocket_context lws_context
 #    define libwebsocket_protocols lws_protocols
@@ -466,6 +466,8 @@ int _mosquitto_log_printf(struct mosquitto *mosq, int level, const char *fmt, ..
 #ifdef WITH_BRIDGE
 int mqtt3_bridge_new(struct mosquitto_db *db, struct _mqtt3_bridge *bridge);
 int mqtt3_bridge_connect(struct mosquitto_db *db, struct mosquitto *context);
+int mqtt3_bridge_connect_step1(struct mosquitto_db *db, struct mosquitto *context);
+int mqtt3_bridge_connect_step2(struct mosquitto_db *db, struct mosquitto *context);
 void mqtt3_bridge_packet_cleanup(struct mosquitto *context);
 #endif
 

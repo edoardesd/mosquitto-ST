@@ -182,7 +182,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 		case LWS_CALLBACK_ESTABLISHED:
 			mosq = mqtt3_context_init(db, WEBSOCKET_CLIENT);
 			if(mosq){
-				p = libwebsocket_get_protocol(wsi);
+				p = libwebsockets_get_protocol(wsi);
 				for (i=0; i<db->config->listener_count; i++){
 					if (db->config->listeners[i].protocol == mp_websockets) {
 						for (j=0; db->config->listeners[i].ws_protocol[j].name; j++){
@@ -193,7 +193,10 @@ static int callback_mqtt(struct libwebsocket_context *context,
 						}
 					}
 				}
-
+				if(!mosq->listener){
+					_mosquitto_free(mosq);
+					return -1;
+				}
 #if !defined(LWS_LIBRARY_VERSION_NUMBER)
 				mosq->ws_context = context;
 #endif
@@ -205,6 +208,12 @@ static int callback_mqtt(struct libwebsocket_context *context,
 			easy_address(libwebsocket_get_socket_fd(wsi), mosq);
 			if(!mosq->address){
 				/* getpeername and inet_ntop failed and not a bridge */
+				_mosquitto_free(mosq);
+				u->mosq = NULL;
+				return -1;
+			}
+			if(mosq->listener->max_connections > 0 && mosq->listener->client_count > mosq->listener->max_connections){
+				_mosquitto_log_printf(NULL, MOSQ_LOG_NOTICE, "Client connection from %s denied: max_connections exceeded.", mosq->address);
 				_mosquitto_free(mosq);
 				u->mosq = NULL;
 				return -1;
@@ -495,6 +504,7 @@ static int callback_http(struct libwebsocket_context *context,
 			if(fstat(fileno(u->fptr), &filestat) < 0){
 				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_INTERNAL_SERVER_ERROR, NULL);
 				fclose(u->fptr);
+				u->fptr = NULL;
 				return -1;
 			}
 #ifdef WIN32
@@ -503,6 +513,8 @@ static int callback_http(struct libwebsocket_context *context,
 			if(!S_ISREG(filestat.st_mode)){
 #endif
 				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_FORBIDDEN, NULL);
+				fclose(u->fptr);
+				u->fptr = NULL;
 				return -1;
 			}
 
@@ -512,6 +524,7 @@ static int callback_http(struct libwebsocket_context *context,
 												(unsigned int)filestat.st_size);
             if(libwebsocket_write(wsi, buf, buflen, LWS_WRITE_HTTP) < 0){
 				fclose(u->fptr);
+				u->fptr = NULL;
 				return -1;
 			}
 			libwebsocket_callback_on_writable(context, wsi);
@@ -537,6 +550,7 @@ static int callback_http(struct libwebsocket_context *context,
 					buflen = fread(buf, 1, sizeof(buf), u->fptr);
 					if(buflen < 1){
 						fclose(u->fptr);
+						u->fptr = NULL;
 						return -1;
 					}
 					wlen = libwebsocket_write(wsi, buf, buflen, LWS_WRITE_HTTP);
@@ -557,6 +571,16 @@ static int callback_http(struct libwebsocket_context *context,
 			}else{
 				return -1;
 			}
+			break;
+
+		case LWS_CALLBACK_CLOSED:
+		case LWS_CALLBACK_CLOSED_HTTP:
+		case LWS_CALLBACK_HTTP_FILE_COMPLETION:
+			if(u && u->fptr){
+				fclose(u->fptr);
+				u->fptr = NULL;
+			}
+			break;
 #endif
 
 		default:
@@ -636,7 +660,7 @@ struct libwebsocket_context *mosq_websockets_init(struct _mqtt3_listener *listen
 		if(!user->http_dir){
 			_mosquitto_free(user);
 			_mosquitto_free(p);
-			_mosquitto_log_printf(NULL, MOSQ_LOG_ERR, "Error: Unable to open http dir \"%s\".", user->http_dir);
+			_mosquitto_log_printf(NULL, MOSQ_LOG_ERR, "Error: Unable to open http dir \"%s\".", listener->http_dir);
 			return NULL;
 		}
 	}

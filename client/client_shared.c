@@ -690,7 +690,7 @@ int client_opts_set(struct mosquitto *mosq, struct mosq_config *cfg)
 		return 1;
 	}
 #  endif
-	if(cfg->tls_version && mosquitto_tls_opts_set(mosq, 1, cfg->tls_version, cfg->ciphers)){
+	if((cfg->tls_version || cfg->ciphers) && mosquitto_tls_opts_set(mosq, 1, cfg->tls_version, cfg->ciphers)){
 		if(!cfg->quiet) fprintf(stderr, "Error: Problem setting TLS options.\n");
 		mosquitto_lib_cleanup();
 		return 1;
@@ -924,6 +924,10 @@ static int mosquitto__parse_socks_url(struct mosq_config *cfg, char *url)
 			port[len] = '\0';
 		}else{
 			host = malloc(len + 1);
+			if(!host){
+				fprintf(stderr, "Error: Out of memory.\n");
+				goto cleanup;
+			}
 			memcpy(host, &(str[start]), len);
 			host[len] = '\0';
 		}
