@@ -3,14 +3,15 @@ Section: net
 Priority: optional
 Maintainer: Roger A. Light <roger@atchoo.org>
 Build-Depends: debhelper (>= 10),
+               dh-systemd,
                libc-ares-dev,
                libssl-dev (>=1.0.0),
-               libwebsockets-dev (>=1.2),
+               libwebsockets-dev (>=2.0),
                libwrap0-dev,
                python-all (>= 2.6.6-3~),
                uthash-dev,
                uuid-dev
-Standards-Version: 3.9.8
+Standards-Version: 4.1.2
 Homepage: http://mosquitto.org/
 Vcs-Git: https://github.com/eclipse/mosquitto
 Vcs-Browser: https://github.com/eclipse/mosquitto/tree/debian
@@ -127,7 +128,7 @@ Description: Mosquitto command line MQTT clients
 Package: mosquitto-dbg
 Architecture: any
 Multi-Arch: foreign
-Priority: extra
+Priority: optional
 Section: debug
 Depends: mosquitto (= ${binary:Version}) | mosquitto-clients (= ${binary:Version}),
          ${misc:Depends}
@@ -139,7 +140,7 @@ Description: debugging symbols for mosquitto binaries
 Package: libmosquitto1-dbg
 Architecture: any
 Multi-Arch: same
-Priority: extra
+Priority: optional
 Section: debug
 Depends: libmosquitto1 (= ${binary:Version}), ${misc:Depends}
 Description: debugging symbols for libmosquitto binaries
@@ -149,7 +150,7 @@ Description: debugging symbols for libmosquitto binaries
 Package: libmosquittopp1-dbg
 Architecture: any
 Multi-Arch: same
-Priority: extra
+Priority: optional
 Section: debug
 Depends: libmosquittopp1 (= ${binary:Version}), ${misc:Depends}
 Description: debugging symbols for libmosquittopp binaries

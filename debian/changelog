@@ -1,3 +1,19 @@
+mosquitto (1.4.14-1) unstable; urgency=medium
+
+  * SECURITY UPDATE: Persistence file is world readable, which may expose
+    sensitive data. Fixed by upstream release 1.4.13.
+    - CVE-2017-9868
+  * New upstream release.
+  * Remove upstart support.
+  * Bumped standards version to 4.1.2.
+    - Removed invoke-rc.d conditionals.
+    - Changed "extra" priorities to "optional".
+  * Build-Depends: Add dh-systemd, bump libwebsockets to >=2.0.
+  * no-man-clean.patch - don't clean man pages from source directory.
+  * async_dns.patch - enable bridge async DNS lookups.
+
+ -- Roger A. Light <roger@atchoo.org>  Fri, 22 Dec 2017 07:14:19 +0000
+
 mosquitto (1.4.12-1) experimental; urgency=low
 
   * New upstream release.

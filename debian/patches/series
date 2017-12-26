@@ -1,3 +1,4 @@
+async_dns.patch
 enable-libwrap.patch
 fix-prefix.patch
 nostrip.patch
