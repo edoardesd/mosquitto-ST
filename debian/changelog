@@ -1,6 +1,7 @@
 mosquitto (1.4.14-2) unstable; urgency=low
 
   * Fix lintian error "build-depends-on-obsolete-package"
+  * Fix lintian warning "extended-description-line-too-long"
 
  -- Roger A. Light <roger@atchoo.org>  Tue, 26 Dec 2017 22:03:57 +0000
 

@@ -72,8 +72,8 @@ Replaces: libmosquitto0-dev (<< 1.2-1~)
 Breaks: libmosquitto0-dev (<< 1.2-1~)
 Description: MQTT version 3.1/3.1.1 client library, development files
  This is the header and man page for the libmosquitto1 C library, which is a
- library for implementing MQTT version 3.1/3.1.1 clients. This package is needed to do
- development with libmosquitto1.
+ library for implementing MQTT version 3.1/3.1.1 clients. This package is
+ needed to do development with libmosquitto1.
 
 Package: libmosquittopp1
 Section: libs
