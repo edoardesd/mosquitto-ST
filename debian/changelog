@@ -1,3 +1,9 @@
+mosquitto (1.4.14-2) unstable; urgency=low
+
+  * Fix lintian error "build-depends-on-obsolete-package"
+
+ -- Roger A. Light <roger@atchoo.org>  Tue, 26 Dec 2017 22:03:57 +0000
+
 mosquitto (1.4.14-1) unstable; urgency=medium
 
   * SECURITY UPDATE: Persistence file is world readable, which may expose

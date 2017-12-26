@@ -3,7 +3,6 @@ Section: net
 Priority: optional
 Maintainer: Roger A. Light <roger@atchoo.org>
 Build-Depends: debhelper (>= 10),
-               dh-systemd,
                libc-ares-dev,
                libssl-dev (>=1.0.0),
                libwebsockets-dev (>=2.0),
