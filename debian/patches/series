@@ -7,3 +7,4 @@ enable-websockets.patch
 libdir.patch
 build-timestamp.patch
 hurd-errno.patch
+debian-config.patch
