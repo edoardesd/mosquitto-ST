@@ -1,8 +1,8 @@
 #!/bin/sh
 
 MAJOR=1
-MINOR=4
-REVISION=14
+MINOR=5
+REVISION=0
 
 sed -i "s/^VERSION=.*/VERSION=${MAJOR}.${MINOR}.${REVISION}/" config.mk
 
@@ -14,3 +14,4 @@ sed -i "s/^set (VERSION .*)/set (VERSION ${MAJOR}.${MINOR}.${REVISION})/" CMakeL
 
 sed -i "s/^!define VERSION .*/!define VERSION ${MAJOR}.${MINOR}.${REVISION}/" installer/*.nsi
 
+sed -i "s/^version: .*/version: ${MAJOR}.${MINOR}.${REVISION}/" snap/snapcraft.yaml
