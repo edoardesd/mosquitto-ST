@@ -1,0 +1,74 @@
+--- a/config.mk
++++ b/config.mk
+@@ -270,6 +270,8 @@
+ mandir=${prefix}/share/man
+ localedir=${prefix}/share/locale
+ STRIP?=strip
++DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
++libdir=${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}
+ 
+ ifeq ($(WITH_STRIP),yes)
+ 	STRIP_OPTS:=-s --strip-program=${CROSS_COMPILE}${STRIP}
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -48,21 +48,21 @@
+ 	$(MAKE) -C cpp
+ 
+ install : all
+-	$(INSTALL) -d "${DESTDIR}$(prefix)/lib${LIB_SUFFIX}/"
+-	$(INSTALL) ${STRIP_OPTS} libmosquitto.so.${SOVERSION} "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquitto.so.${SOVERSION}"
+-	ln -sf libmosquitto.so.${SOVERSION} "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquitto.so"
++	$(INSTALL) -d "${libdir}/"
++	$(INSTALL) ${STRIP_OPTS} libmosquitto.so.${SOVERSION} "${libdir}/libmosquitto.so.${SOVERSION}"
++	ln -sf libmosquitto.so.${SOVERSION} "${libdir}/libmosquitto.so"
+ ifeq ($(WITH_STATIC_LIBRARIES),yes)
+-	$(INSTALL) libmosquitto.a "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquitto.a"
+-	${CROSS_COMPILE}${STRIP} -g --strip-unneeded "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquitto.a"
++	$(INSTALL) libmosquitto.a "${libdir}/libmosquitto.a"
++	${CROSS_COMPILE}${STRIP} -g --strip-unneeded "${libdir}/libmosquitto.a"
+ endif
+ 	$(INSTALL) -d "${DESTDIR}${prefix}/include/"
+ 	$(INSTALL) mosquitto.h "${DESTDIR}${prefix}/include/mosquitto.h"
+ 	$(MAKE) -C cpp install
+ 
+ uninstall :
+-	-rm -f "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquitto.so.${SOVERSION}"
+-	-rm -f "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquitto.so"
+-	-rm -f "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquitto.a"
++	-rm -f "${libdir}/libmosquitto.so.${SOVERSION}"
++	-rm -f "${libdir}/libmosquitto.so"
++	-rm -f "${libdir}/libmosquitto.a"
+ 	-rm -f "${DESTDIR}${prefix}/include/mosquitto.h"
+ 
+ reallyclean : clean
+--- a/lib/cpp/Makefile
++++ b/lib/cpp/Makefile
+@@ -15,20 +15,20 @@
+ all : ${ALL_DEPS}
+ 
+ install : all
+-	$(INSTALL) -d "${DESTDIR}$(prefix)/lib${LIB_SUFFIX}/"
+-	$(INSTALL) ${STRIP_OPTS} libmosquittopp.so.${SOVERSION} "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquittopp.so.${SOVERSION}"
+-	ln -sf libmosquittopp.so.${SOVERSION} "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquittopp.so"
++	$(INSTALL) -d "${libdir}/"
++	$(INSTALL) ${STRIP_OPTS} libmosquittopp.so.${SOVERSION} "${libdir}/libmosquittopp.so.${SOVERSION}"
++	ln -sf libmosquittopp.so.${SOVERSION} "${libdir}/libmosquittopp.so"
+ ifeq ($(WITH_STATIC_LIBRARIES),yes)
+-	$(INSTALL) libmosquittopp.a "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquittopp.a"
+-	${CROSS_COMPILE}${STRIP} -g --strip-unneeded "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquittopp.a"
++	$(INSTALL) libmosquittopp.a "${libdir}/libmosquittopp.a"
++	${CROSS_COMPILE}${STRIP} -g --strip-unneeded "${libdir}/libmosquittopp.a"
+ endif
+ 	$(INSTALL) -d "${DESTDIR}${prefix}/include/"
+ 	$(INSTALL) mosquittopp.h "${DESTDIR}${prefix}/include/mosquittopp.h"
+ 	
+ uninstall :
+-	-rm -f "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquittopp.so.${SOVERSION}"
+-	-rm -f "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquittopp.so"
+-	-rm -f "${DESTDIR}${prefix}/lib${LIB_SUFFIX}/libmosquittopp.a"
++	-rm -f "${libdir}/libmosquittopp.so.${SOVERSION}"
++	-rm -f "${libdir}/libmosquittopp.so"
++	-rm -f "${libdir}/libmosquittopp.a"
+ 	-rm -f "${DESTDIR}${prefix}/include/mosquittopp.h"
+ 
+ clean :
