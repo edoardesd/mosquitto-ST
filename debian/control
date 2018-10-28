@@ -3,15 +3,14 @@ Section: net
 Priority: optional
 Maintainer: Roger A. Light <roger@atchoo.org>
 Build-Depends: debhelper (>= 10),
-               libc-ares-dev,
                libssl-dev (>=1.0.0),
-               libwebsockets-dev (>=2.0),
+               libsystemd-dev,
+               libwebsockets-dev,
                libwrap0-dev,
-               python-all (>= 2.6.6-3~),
                uthash-dev,
                uuid-dev
-Standards-Version: 4.1.2
-Homepage: http://mosquitto.org/
+Standards-Version: 4.2.1
+Homepage: https://mosquitto.org/
 Vcs-Git: https://github.com/eclipse/mosquitto
 Vcs-Browser: https://github.com/eclipse/mosquitto/tree/debian
 
@@ -123,35 +122,3 @@ Description: Mosquitto command line MQTT clients
  implementation. This makes it particularly useful at the edge of the network
  where a sensor or other simple device may be implemented using an arduino for
  example.
-
-Package: mosquitto-dbg
-Architecture: any
-Multi-Arch: foreign
-Priority: optional
-Section: debug
-Depends: mosquitto (= ${binary:Version}) | mosquitto-clients (= ${binary:Version}),
-         ${misc:Depends}
-Description: debugging symbols for mosquitto binaries
- This package contains debugging files used to investigate problems with
- the binaries provided by the packages mosquitto, mosquitto-clients,
- libmosquitto1 and libmosquittopp1.
-
-Package: libmosquitto1-dbg
-Architecture: any
-Multi-Arch: same
-Priority: optional
-Section: debug
-Depends: libmosquitto1 (= ${binary:Version}), ${misc:Depends}
-Description: debugging symbols for libmosquitto binaries
- This package contains debugging files used to investigate problems with
- the binaries provided by the libmosquitto1 package.
-
-Package: libmosquittopp1-dbg
-Architecture: any
-Multi-Arch: same
-Priority: optional
-Section: debug
-Depends: libmosquittopp1 (= ${binary:Version}), ${misc:Depends}
-Description: debugging symbols for libmosquittopp binaries
- This package contains debugging files used to investigate problems with
- the binaries provided by the libmosquittopp1 package.

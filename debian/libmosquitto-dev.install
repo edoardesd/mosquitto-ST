@@ -1,3 +1,4 @@
 usr/include/mosquitto.h
 usr/lib/*/libmosquitto.so
 usr/share/man/man3/libmosquitto.3
+usr/lib/*/pkgconfig/libmosquitto.pc

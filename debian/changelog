@@ -1,3 +1,43 @@
+mosquitto (1.5.4-1) unstable; urgency=medium
+
+  * New upstream release (Closes: #911104).
+    - Fixes CVE-2017-7654 (Closes: #911265)
+    - Fixes CVE-2017-7653 (Closes: #911266)
+  * Remove no longer needed patches. Some are integrated into upstream, others
+    have been replaced with changes in rules.
+    - async_dns.patch
+    - build-timestamp.patch
+    - disable-in-tree-uthash.patch
+    - enable-libwrap.patch
+    - enable-websockets.patch
+    - fix-prefix.patch
+    - hurd-errno.patch
+    - libdir.patch
+    - nostrip.patch
+  * Copyright fix - src/uthash.h -> src/deps/uthash.h
+  * Update symbols files with new additions.
+  * Remove debian/mosquitto.prerm
+    - Calls to invoke-rc.d to stop mosquitto will be inserted automagically by
+      dephelper.
+  * Stop removing the mosquitto user in postrm.
+    - This is not safe since there might still be logs (and other files?)
+      around owned by the uid, so we don't want it reused for a new user.
+  * Add build dependency on libsystemd-dev.
+  * Enable systemd build support.
+  * Ship the mosquitto.service file (with sd-notify support)
+  * Drop -dbg packages and do -dbgsym migration.
+  * libmosquito{,pp}-dev: ship libmosquitto{,pp}.pc respectively.
+  * Remove unused build dependency on python-all. (Closes: #901424).
+  * Bump standards version to 4.2.1, no changes needed.
+
+ -- Roger A. Light <roger@atchoo.org>  Thu, 08 Nov 2018 13:34:59 +0000
+
+mosquitto (1.4.15-2) unstable; urgency=low
+
+  * Replace mentions of 'c_rehash' with 'openssl rehash'. (Closes: #895084).
+
+ -- Roger A. Light <roger@atchoo.org>  Sat, 07 Apr 2018 11:16:43 +0100
+
 mosquitto (1.4.15-1) unstable; urgency=high
 
   * SECURITY UPDATE: If a SIGHUP is sent to the broker when there are no more
