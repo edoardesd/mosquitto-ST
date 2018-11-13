@@ -18,7 +18,7 @@ mosquitto (1.5.4-1) unstable; urgency=medium
   * Update symbols files with new additions.
   * Remove debian/mosquitto.prerm
     - Calls to invoke-rc.d to stop mosquitto will be inserted automagically by
-      dephelper.
+      debhelper.
   * Stop removing the mosquitto user in postrm.
     - This is not safe since there might still be logs (and other files?)
       around owned by the uid, so we don't want it reused for a new user.
@@ -29,6 +29,7 @@ mosquitto (1.5.4-1) unstable; urgency=medium
   * libmosquito{,pp}-dev: ship libmosquitto{,pp}.pc respectively.
   * Remove unused build dependency on python-all. (Closes: #901424).
   * Bump standards version to 4.2.1, no changes needed.
+  * Bumped dh compat level to 11.
 
  -- Roger A. Light <roger@atchoo.org>  Thu, 08 Nov 2018 13:34:59 +0000
 

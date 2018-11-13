@@ -2,7 +2,7 @@ Source: mosquitto
 Section: net
 Priority: optional
 Maintainer: Roger A. Light <roger@atchoo.org>
-Build-Depends: debhelper (>= 10),
+Build-Depends: debhelper (>= 11),
                libssl-dev (>=1.0.0),
                libsystemd-dev,
                libwebsockets-dev,
