@@ -1,7 +1,7 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: mosquitto
 Upstream-Contact: Roger A. Light <roger@atchoo.org>
-Source: http://mosquitto.org/files/source/
+Source: https://mosquitto.org/files/source/
 
 Files: *
 Copyright: 2009-2018 Roger A. Light <roger@atchoo.org>
@@ -255,7 +255,7 @@ License: EPL-1.0
  after the cause of action arose. Each party waives its rights to a jury trial
  in any resulting litigation.
 
-Files: src/dep/uthash.h
+Files: src/deps/uthash.h
 Copyright: 2003-2013, Troy D. Hanson     http://uthash.sourceforge.net
 License: BSD-1-clause
  Redistribution and use in source and binary forms, with or without
