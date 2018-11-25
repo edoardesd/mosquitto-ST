@@ -19,6 +19,10 @@ follow the steps on [Eclipse Security] page to report it.
 Listed with most recent first. Further information on security related issues
 can be found in the [security category].
 
+* November 2018: No CVE assigned. Affecting versions **1.4** to **1.5.3**
+  inclusive, fixed in **1.5.4**. More details at [version-154-released].
+* September 2018: [CVE-2018-12543] affecting versions **1.5** to **1.5.2**
+  inclusive, fixed in **1.5.3**.
 * April 2018: [CVE-2017-7655] affecting versions **1.0** to **1.4.15**
   inclusive, fixed in **1.5**.
 * April 2018: [CVE-2017-7654] affecting versions **1.0** to **1.4.15**
@@ -39,7 +43,8 @@ can be found in the [security category].
   inclusive, fixed in **1.4.12**. More details at
   [security-advisory-cve-2017-7650].
 
-
+[version-154-released]: /2018/11/version-154-released/
+[security-advisory-cve-2018-12543]: /2018/09/security-advisory-cve-2018-12543/
 [security-advisory-cve-2017-7651-cve-2017-7652]: /2018/02/security-advisory-cve-2017-7651-cve-2017-7652/
 [security-advisory-cve-2017-7650]: /2017/05/security-advisory-cve-2017-7650/
 [security-advisory-cve-2017-9868]: /2017/06/security-advisory-cve-2017-9868/
@@ -47,6 +52,7 @@ can be found in the [security category].
 [Eclipse Security]: https://www.eclipse.org/security/
 [security category]: /blog/categories/security/
 
+[CVE-2018-12543]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-12543
 [CVE-2017-9868]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-9868
 [CVE-2017-7655]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-7652
 [CVE-2017-7654]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-7652
