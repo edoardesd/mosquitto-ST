@@ -5,16 +5,14 @@ export prefix=/usr
 export libdir=/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 %:
-	dh $@
+	# Don't process CMake rules, CMakeLists.txt is only included for Windows/Mac support.
+	dh $@ --buildsystem=makefile
 
 override_dh_installchangelogs:
 	dh_installchangelogs ChangeLog.txt
 
-override_dh_auto_configure:
-	# Don't process CMake rules, CMakeLists.txt is only included for Windows/Mac support.
-
 override_dh_auto_build:
-	make WITH_BUNDLED_DEPS=no WITH_ADNS=yes WITH_WRAP=yes WITH_WEBSOCKETS=yes WITH_STRIP=no WITH_SYSTEMD=yes
+	dh_auto_build -- WITH_BUNDLED_DEPS=no WITH_ADNS=yes WITH_WRAP=yes WITH_WEBSOCKETS=yes WITH_STRIP=no WITH_SYSTEMD=yes
 
 override_dh_auto_test:
 
