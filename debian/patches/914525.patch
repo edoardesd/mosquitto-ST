@@ -1,0 +1,18 @@
+Description: Use pkg-config to get systemd libs to allow build on non-linux systems
+Author: Roger Light <roger@atchoo.org>
+Forwarded: yes
+--- a/config.mk
++++ b/config.mk
+@@ -235,8 +235,10 @@
+ endif
+ 
+ ifeq ($(WITH_SYSTEMD),yes)
+-	BROKER_CFLAGS:=$(BROKER_CFLAGS) -DWITH_SYSTEMD
+-	BROKER_LIBS:=$(BROKER_LIBS) -lsystemd
++	ifneq ($(shell pkg-config --libs libsystemd),)
++		BROKER_CFLAGS:=$(BROKER_CFLAGS) -DWITH_SYSTEMD $(pkg-config --cflags libsystemd)
++		BROKER_LIBS:=$(BROKER_LIBS) $(pkg-config --libs libsystemd)
++	endif
+ endif
+ 
+ ifeq ($(WITH_SRV),yes)

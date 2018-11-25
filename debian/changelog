@@ -1,3 +1,11 @@
+mosquitto (1.5.4-2) unstable; urgency=medium
+
+  * debian/patches/914525.patch : Use pkg-config to get systemd libs
+    (Closes: #914525)
+    - This is needed to allow compilation on non-Linux systems.
+
+ -- Roger A. Light <roger@atchoo.org>  Sun, 25 Nov 2018 13:52:16 +0000
+
 mosquitto (1.5.4-1) unstable; urgency=medium
 
   * New upstream release (Closes: #911104).
