@@ -4,6 +4,7 @@ mosquitto (1.5.4-2) unstable; urgency=medium
     (Closes: #914525)
     - This is needed to allow compilation on non-Linux systems.
   * Fix FTCBFS: Let dh_auto_build pass cross tools to make. (Closes: #914593)
+  * Ensure log files are owned by mosquitto. (Closes: #877346)
 
  -- Roger A. Light <roger@atchoo.org>  Sun, 25 Nov 2018 13:52:16 +0000
 
