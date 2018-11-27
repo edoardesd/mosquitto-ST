@@ -10,8 +10,8 @@ Forwarded: yes
 -	BROKER_CFLAGS:=$(BROKER_CFLAGS) -DWITH_SYSTEMD
 -	BROKER_LIBS:=$(BROKER_LIBS) -lsystemd
 +	ifneq ($(shell pkg-config --libs libsystemd),)
-+		BROKER_CFLAGS:=$(BROKER_CFLAGS) -DWITH_SYSTEMD $(pkg-config --cflags libsystemd)
-+		BROKER_LIBS:=$(BROKER_LIBS) $(pkg-config --libs libsystemd)
++		BROKER_CFLAGS:=$(BROKER_CFLAGS) -DWITH_SYSTEMD $(shell pkg-config --cflags libsystemd)
++		BROKER_LIBS:=$(BROKER_LIBS) $(shell pkg-config --libs libsystemd)
 +	endif
  endif
  
