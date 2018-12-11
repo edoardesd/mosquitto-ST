@@ -1,3 +1,13 @@
+mosquitto (1.5.5-1) unstable; urgency=medium
+
+  * SECURITY UPDATE: If the option `per_listener_settings` was set to true,
+    and the default listener was in use, and the default listener specified an
+    `acl_file`, then the acl file was being ignored. This affects version 1.5
+    to 1.5.4 inclusive.
+  * New upstream release.
+
+ -- Roger A. Light <roger@atchoo.org>  Tue, 11 Dec 2018 16:37:32 +0000
+
 mosquitto (1.5.4-2) unstable; urgency=medium
 
   * debian/patches/914525.patch : Use pkg-config to get systemd libs
