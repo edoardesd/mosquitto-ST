@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -91,8 +91,14 @@ int drop_privileges(struct mosquitto__config *config, bool temporary)
 {
 #if !defined(__CYGWIN__) && !defined(WIN32)
 	struct passwd *pwd;
-	char err[256];
+	char *err;
 	int rc;
+
+	const char *snap = getenv("SNAP_NAME");
+	if(snap && !strcmp(snap, "mosquitto")){
+		/* Don't attempt to drop privileges if running as a snap */
+		return MOSQ_ERR_SUCCESS;
+	}
 
 	if(geteuid() == 0){
 		if(config->user && strcmp(config->user, "root")){
@@ -102,7 +108,7 @@ int drop_privileges(struct mosquitto__config *config, bool temporary)
 				return 1;
 			}
 			if(initgroups(config->user, pwd->pw_gid) == -1){
-				strerror_r(errno, err, 256);
+				err = strerror(errno);
 				log__printf(NULL, MOSQ_LOG_ERR, "Error setting groups whilst dropping privileges: %s.", err);
 				return 1;
 			}
@@ -112,7 +118,7 @@ int drop_privileges(struct mosquitto__config *config, bool temporary)
 				rc = setgid(pwd->pw_gid);
 			}
 			if(rc == -1){
-				strerror_r(errno, err, 256);
+				err = strerror(errno);
 				log__printf(NULL, MOSQ_LOG_ERR, "Error setting gid whilst dropping privileges: %s.", err);
 				return 1;
 			}
@@ -122,7 +128,7 @@ int drop_privileges(struct mosquitto__config *config, bool temporary)
 				rc = setuid(pwd->pw_uid);
 			}
 			if(rc == -1){
-				strerror_r(errno, err, 256);
+				err = strerror(errno);
 				log__printf(NULL, MOSQ_LOG_ERR, "Error setting uid whilst dropping privileges: %s.", err);
 				return 1;
 			}
@@ -138,19 +144,19 @@ int drop_privileges(struct mosquitto__config *config, bool temporary)
 int restore_privileges(void)
 {
 #if !defined(__CYGWIN__) && !defined(WIN32)
-	char err[256];
+	char *err;
 	int rc;
 
 	if(getuid() == 0){
 		rc = setegid(0);
 		if(rc == -1){
-			strerror_r(errno, err, 256);
+			err = strerror(errno);
 			log__printf(NULL, MOSQ_LOG_ERR, "Error setting gid whilst restoring privileges: %s.", err);
 			return 1;
 		}
 		rc = seteuid(0);
 		if(rc == -1){
-			strerror_r(errno, err, 256);
+			err = strerror(errno);
 			log__printf(NULL, MOSQ_LOG_ERR, "Error setting uid whilst restoring privileges: %s.", err);
 			return 1;
 		}
@@ -163,12 +169,12 @@ int restore_privileges(void)
 void mosquitto__daemonise(void)
 {
 #ifndef WIN32
-	char err[256];
+	char *err;
 	pid_t pid;
 
 	pid = fork();
 	if(pid < 0){
-		strerror_r(errno, err, 256);
+		err = strerror(errno);
 		log__printf(NULL, MOSQ_LOG_ERR, "Error in fork: %s", err);
 		exit(1);
 	}
@@ -176,7 +182,7 @@ void mosquitto__daemonise(void)
 		exit(0);
 	}
 	if(setsid() < 0){
-		strerror_r(errno, err, 256);
+		err = strerror(errno);
 		log__printf(NULL, MOSQ_LOG_ERR, "Error in setsid: %s", err);
 		exit(1);
 	}
@@ -238,7 +244,7 @@ int main(int argc, char *argv[])
 
 	memset(&int_db, 0, sizeof(struct mosquitto_db));
 
-	net__init();
+	net__broker_init();
 
 	config__init(&int_db, &config);
 	rc = config__parse_args(&int_db, &config, argc, argv);
@@ -432,7 +438,7 @@ int main(int argc, char *argv[])
 	}
 
 	config__cleanup(int_db.config);
-	net__cleanup();
+	net__broker_cleanup();
 
 	return rc;
 }

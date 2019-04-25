@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -14,8 +14,7 @@ Contributors:
    Roger Light - initial implementation and documentation.
 */
 
-/* For nanosleep */
-#define _POSIX_C_SOURCE 200809L
+#include "config.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -224,7 +223,7 @@ void print_usage(void)
 #ifdef WITH_TLS
 	printf("                     [{--cafile file | --capath dir} [--cert file] [--key file]\n");
 	printf("                      [--ciphers ciphers] [--insecure]]\n");
-#ifdef WITH_TLS_PSK
+#ifdef FINAL_WITH_TLS_PSK
 	printf("                     [--psk hex-key --psk-identity identity [--ciphers ciphers]]\n");
 #endif
 #endif
@@ -281,7 +280,7 @@ void print_usage(void)
 	printf("              hostname. Using this option means that you cannot be sure that the\n");
 	printf("              remote host is the server you wish to connect to and so is insecure.\n");
 	printf("              Do not use this option in a production environment.\n");
-#  ifdef WITH_TLS_PSK
+#  ifdef FINAL_WITH_TLS_PSK
 	printf(" --psk : pre-shared-key in hexadecimal (no leading 0x) to enable TLS-PSK mode.\n");
 	printf(" --psk-identity : client identity string for TLS-PSK mode.\n");
 #  endif
@@ -335,6 +334,14 @@ int main(int argc, char *argv[])
 	username = cfg.username;
 	password = cfg.password;
 	quiet = cfg.quiet;
+
+#ifndef WITH_THREADING
+	if(cfg.pub_mode == MSGMODE_STDIN_LINE){
+		fprintf(stderr, "Error: '-l' mode not available, threading support has not been compiled in.\n");
+		free(buf);
+		return 1;
+	}
+#endif
 
 	if(cfg.pub_mode == MSGMODE_STDIN_FILE){
 		if(load_stdin()){

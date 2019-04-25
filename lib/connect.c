@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2010-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2010-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -178,6 +178,9 @@ static int mosquitto__reconnect(struct mosquitto *mosq, bool blocking)
 	}else
 #endif
 	{
+		pthread_mutex_lock(&mosq->state_mutex);
+		mosq->state = mosq_cs_connecting;
+		pthread_mutex_unlock(&mosq->state_mutex);
 		rc = net__socket_connect(mosq, mosq->host, mosq->port, mosq->bind_address, blocking);
 	}
 	if(rc>0){

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -14,11 +14,11 @@ Contributors:
    Roger Light - initial implementation and documentation.
 */
 
+#include "config.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "config.h"
 
 #include "mosquitto_broker_internal.h"
 #include "mqtt3_protocol.h"
@@ -70,6 +70,7 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	if(mosquitto_validate_utf8(topic, slen) != MOSQ_ERR_SUCCESS){
+		log__printf(NULL, MOSQ_LOG_INFO, "Client %s sent topic with invalid UTF-8, disconnecting.", context->id);
 		mosquitto__free(topic);
 		return 1;
 	}
@@ -168,7 +169,7 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	/* Check for topic access */
-	rc = mosquitto_acl_check(db, context, topic, MOSQ_ACL_WRITE);
+	rc = mosquitto_acl_check(db, context, topic, payloadlen, UHPA_ACCESS(payload, payloadlen), qos, retain, MOSQ_ACL_WRITE);
 	if(rc == MOSQ_ERR_ACL_DENIED){
 		log__printf(NULL, MOSQ_LOG_DEBUG, "Denied PUBLISH from %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", context->id, dup, qos, retain, mid, topic, (long)payloadlen);
 		goto process_bad_message;
@@ -184,7 +185,7 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 	if(!stored){
 		dup = 0;
-		if(db__message_store(db, context->id, mid, topic, qos, payloadlen, &payload, retain, &stored, 0)){
+		if(db__message_store(db, context, mid, topic, qos, payloadlen, &payload, retain, &stored, 0)){
 			return 1;
 		}
 	}else{
@@ -229,7 +230,7 @@ process_bad_message:
 		case 2:
 			db__message_store_find(context, mid, &stored);
 			if(!stored){
-				if(db__message_store(db, context->id, mid, NULL, qos, 0, NULL, false, &stored, 0)){
+				if(db__message_store(db, context, mid, NULL, qos, 0, NULL, false, &stored, 0)){
 					return 1;
 				}
 				res = db__message_insert(db, context, mid, mosq_md_in, qos, false, stored);

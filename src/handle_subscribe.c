@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -14,10 +14,10 @@ Contributors:
    Roger Light - initial implementation and documentation.
 */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <string.h>
-
-#include "config.h"
 
 #include "mosquitto_broker_internal.h"
 #include "memory_mosq.h"
@@ -112,8 +112,8 @@ int handle__subscribe(struct mosquitto_db *db, struct mosquitto *context)
 			log__printf(NULL, MOSQ_LOG_DEBUG, "\t%s (QoS %d)", sub, qos);
 
 			if(context->protocol == mosq_p_mqtt311){
-				rc = mosquitto_acl_check(db, context, sub, MOSQ_ACL_SUBSCRIBE);
-				switch(rc){
+				rc2 = mosquitto_acl_check(db, context, sub, 0, NULL, qos, false, MOSQ_ACL_SUBSCRIBE);
+				switch(rc2){
 					case MOSQ_ERR_SUCCESS:
 						break;
 					case MOSQ_ERR_ACL_DENIED:
@@ -121,7 +121,7 @@ int handle__subscribe(struct mosquitto_db *db, struct mosquitto *context)
 						break;
 					default:
 						mosquitto__free(sub);
-						return rc;
+						return rc2;
 				}
 			}
 

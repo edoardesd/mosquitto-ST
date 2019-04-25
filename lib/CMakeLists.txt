@@ -2,30 +2,6 @@ option(WITH_STATIC_LIBRARIES "Build static versions of the libmosquitto/pp libra
 option(WITH_PIC "Build the static library with PIC (Position Independent Code) enabled archives?" OFF)
 add_subdirectory(cpp)
 
-option(WITH_THREADING "Include client library threading support?" ON)
-if (${WITH_THREADING} STREQUAL ON)
-	add_definitions("-DWITH_THREADING")
-	if (WIN32)
-		if (CMAKE_CL_64)
-			set (PTHREAD_LIBRARIES C:\\pthreads\\Pre-built.2\\lib\\x64\\pthreadVC2.lib)
-		else (CMAKE_CL_64)
-			set (PTHREAD_LIBRARIES C:\\pthreads\\Pre-built.2\\lib\\x86\\pthreadVC2.lib)
-		endif (CMAKE_CL_64)
-		set (PTHREAD_INCLUDE_DIR C:\\pthreads\\Pre-built.2\\include)
-	else (WIN32)
-		find_library(LIBPTHREAD pthread)
-		if (LIBPTHREAD)
-			set (PTHREAD_LIBRARIES pthread)
-		else (LIBPTHREAD)
-			set (PTHREAD_LIBRARIES "")
-		endif()
-		set (PTHREAD_INCLUDE_DIR "")
-	endif (WIN32)
-else (${WITH_THREADING} STREQUAL ON)
-	set (PTHREAD_LIBRARIES "")
-	set (PTHREAD_INCLUDE_DIR "")
-endif (${WITH_THREADING} STREQUAL ON)
-
 include_directories(${mosquitto_SOURCE_DIR} ${mosquitto_SOURCE_DIR}/lib
 			${STDBOOL_H_PATH} ${STDINT_H_PATH}
 			${OPENSSL_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIR})
@@ -84,7 +60,7 @@ if (WIN32)
 	set (LIBRARIES ${LIBRARIES} ws2_32)
 endif (WIN32)
 
-if (${WITH_SRV} STREQUAL ON)
+if (WITH_SRV)
 	# Simple detect c-ares
 	find_path(ARES_HEADER ares.h)
 	if (ARES_HEADER)
@@ -93,7 +69,7 @@ if (${WITH_SRV} STREQUAL ON)
 	else (ARES_HEADER)
 		message(WARNING "c-ares library not found.")
 	endif (ARES_HEADER)
-endif (${WITH_SRV} STREQUAL ON)
+endif (WITH_SRV)
 
 add_library(libmosquitto SHARED ${C_SRC})
 set_target_properties(libmosquitto PROPERTIES
@@ -110,13 +86,13 @@ set_target_properties(libmosquitto PROPERTIES
 
 install(TARGETS libmosquitto RUNTIME DESTINATION "${BINDIR}" LIBRARY DESTINATION "${LIBDIR}")
 
-if (${WITH_STATIC_LIBRARIES} STREQUAL ON)
+if (WITH_STATIC_LIBRARIES)
 	add_library(libmosquitto_static STATIC ${C_SRC})
-	if (${WITH_PIC} STREQUAL ON)
+	if (WITH_PIC)
 		set_target_properties(libmosquitto_static PROPERTIES
 			POSITION_INDEPENDENT_CODE 1
 		)
-	endif (${WITH_PIC} STREQUAL ON)
+	endif (WITH_PIC)
 
 	target_link_libraries(libmosquitto_static ${LIBRARIES})
 
@@ -127,7 +103,7 @@ if (${WITH_STATIC_LIBRARIES} STREQUAL ON)
 
 	target_compile_definitions(libmosquitto_static PUBLIC "LIBMOSQUITTO_STATIC")
 	install(TARGETS libmosquitto_static RUNTIME DESTINATION "${BINDIR}" ARCHIVE DESTINATION "${LIBDIR}")
-endif (${WITH_STATIC_LIBRARIES} STREQUAL ON)
+endif (WITH_STATIC_LIBRARIES)
 
 install(FILES mosquitto.h DESTINATION "${INCLUDEDIR}")
 

@@ -28,7 +28,7 @@ WITH_TLS:=yes
 # This must be disabled if using openssl < 1.0.
 WITH_TLS_PSK:=yes
 
-# Comment out to disable client client threading support.
+# Comment out to disable client threading support.
 WITH_THREADING:=yes
 
 # Comment out to remove bridge support from the broker. This allow the broker
@@ -86,11 +86,17 @@ WITH_STRIP:=no
 # Build static libraries
 WITH_STATIC_LIBRARIES:=no
 
+# Build shared libraries
+WITH_SHARED_LIBRARIES:=yes
+
 # Build with async dns lookup support for bridges (temporary). Requires glibc.
 #WITH_ADNS:=yes
 
 # Build with epoll support.
 WITH_EPOLL:=yes
+
+# Build with bundled uthash.h
+WITH_BUNDLED_DEPS:=yes
 
 # =============================================================================
 # End of user configuration
@@ -99,13 +105,13 @@ WITH_EPOLL:=yes
 
 # Also bump lib/mosquitto.h, CMakeLists.txt,
 # installer/mosquitto.nsi, installer/mosquitto64.nsi
-VERSION=1.5
+VERSION=1.5.8
 
 # Client library SO version. Bump if incompatible API/ABI changes are made.
 SOVERSION=1
 
 # Man page generation requires xsltproc and docbook-xsl
-XSLTPROC=xsltproc
+XSLTPROC=xsltproc --nonet
 # For html generation
 DB_HTML_XSL=man/html.xsl
 
@@ -123,14 +129,15 @@ else
 	CFLAGS?=-Wall -ggdb -O2
 endif
 
+STATIC_LIB_DEPS:=
 LIB_CFLAGS:=${CFLAGS} ${CPPFLAGS} -I. -I.. -I../lib
 LIB_CXXFLAGS:=$(CFLAGS) ${CPPFLAGS} -I. -I.. -I../lib
 LIB_LDFLAGS:=${LDFLAGS}
 
 BROKER_CFLAGS:=${LIB_CFLAGS} ${CPPFLAGS} -DVERSION="\"${VERSION}\"" -DWITH_BROKER
-CLIENT_CFLAGS:=${CFLAGS} ${CPPFLAGS} -I../lib -DVERSION="\"${VERSION}\""
+CLIENT_CFLAGS:=${CFLAGS} ${CPPFLAGS} -I.. -I../lib -DVERSION="\"${VERSION}\""
 
-ifneq ($(or $(findstring $(UNAME),FreeBSD), $(findstring $(UNAME),OpenBSD)),)
+ifneq ($(or $(findstring $(UNAME),FreeBSD), $(findstring $(UNAME),OpenBSD), $(findstring $(UNAME),NetBSD)),)
 	BROKER_LIBS:=-lm
 else
 	BROKER_LIBS:=-ldl -lm
@@ -143,7 +150,10 @@ ifeq ($(UNAME),Linux)
 	LIB_LIBS:=$(LIB_LIBS) -lrt
 endif
 
-CLIENT_LDFLAGS:=$(LDFLAGS) -L../lib ../lib/libmosquitto.so.${SOVERSION}
+CLIENT_LDFLAGS:=$(LDFLAGS) -L../lib
+ifeq ($(WITH_SHARED_LIBRARIES),yes)
+	CLIENT_LDFLAGS:=${CLIENT_LDFLAGS} ../lib/libmosquitto.so.${SOVERSION}
+endif
 
 ifeq ($(UNAME),SunOS)
 	ifeq ($(CC),cc)
@@ -183,6 +193,7 @@ ifeq ($(WITH_TLS),yes)
 	LIB_CFLAGS:=$(LIB_CFLAGS) -DWITH_TLS
 	PASSWD_LIBS:=-lcrypto
 	CLIENT_CFLAGS:=$(CLIENT_CFLAGS) -DWITH_TLS
+	STATIC_LIB_DEPS:=$(STATIC_LIB_DEPS) -lssl -lcrypto
 
 	ifeq ($(WITH_TLS_PSK),yes)
 		BROKER_CFLAGS:=$(BROKER_CFLAGS) -DWITH_TLS_PSK
@@ -194,6 +205,8 @@ endif
 ifeq ($(WITH_THREADING),yes)
 	LIB_LIBS:=$(LIB_LIBS) -lpthread
 	LIB_CFLAGS:=$(LIB_CFLAGS) -DWITH_THREADING
+	CLIENT_CFLAGS:=$(CLIENT_CFLAGS) -DWITH_THREADING
+	STATIC_LIB_DEPS:=$(STATIC_LIB_DEPS) -lpthread
 endif
 
 ifeq ($(WITH_SOCKS),yes)
@@ -239,6 +252,7 @@ ifeq ($(WITH_SRV),yes)
 	LIB_CFLAGS:=$(LIB_CFLAGS) -DWITH_SRV
 	LIB_LIBS:=$(LIB_LIBS) -lcares
 	CLIENT_CFLAGS:=$(CLIENT_CFLAGS) -DWITH_SRV
+	STATIC_LIB_DEPS:=$(STATIC_LIB_DEPS) -lcares
 endif
 
 ifeq ($(UNAME),SunOS)
@@ -271,13 +285,15 @@ ifeq ($(WITH_WEBSOCKETS),static)
 endif
 
 INSTALL?=install
-prefix=/usr/local
-mandir=${prefix}/share/man
-localedir=${prefix}/share/locale
+prefix?=/usr/local
+incdir?=${prefix}/include
+libdir?=${prefix}/lib${LIB_SUFFIX}
+localedir?=${prefix}/share/locale
+mandir?=${prefix}/share/man
 STRIP?=strip
 
 ifeq ($(WITH_STRIP),yes)
-	STRIP_OPTS:=-s --strip-program=${CROSS_COMPILE}${STRIP}
+	STRIP_OPTS?=-s --strip-program=${CROSS_COMPILE}${STRIP}
 endif
 
 ifeq ($(WITH_EPOLL),yes)
@@ -286,3 +302,6 @@ ifeq ($(WITH_EPOLL),yes)
 	endif
 endif
 
+ifeq ($(WITH_BUNDLED_DEPS),yes)
+	BROKER_CFLAGS:=$(BROKER_CFLAGS) -Ideps
+endif

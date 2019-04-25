@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2014-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2014-2019 Roger Light <roger@atchoo.org>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
 extern struct mosquitto_db int_db;
@@ -80,53 +81,77 @@ struct libws_http_data {
 static struct libwebsocket_protocols protocols[] = {
 	/* first protocol must always be HTTP handler */
 	{
-		"http-only",
-		callback_http,
-		sizeof (struct libws_http_data),
-		0,
-#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
-		0,
+		"http-only",						/* name */
+		callback_http,						/* lws_callback_function */
+		sizeof (struct libws_http_data),	/* per_session_data_size */
+		0,									/* rx_buffer_size */
+#ifndef LWS_LIBRARY_VERSION_NUMBER
+		0,									/* no_buffer_all_partial_tx v1.3 only */
 #endif
-		NULL,
-#if !defined(LWS_LIBRARY_VERSION_NUMBER)
-		0
+#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
+		0,									/* id */
+#endif
+#ifdef LWS_LIBRARY_VERSION_NUMBER
+		NULL,								/* user v1.4 on */
+#  if LWS_LIBRARY_VERSION_NUMBER >= 2003000
+		0									/* tx_packet_size v2.3.0 */
+#  endif
 #endif
 	},
 	{
 		"mqtt",
 		callback_mqtt,
 		sizeof(struct libws_mqtt_data),
-		0,
-#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
-		1,
+		0,									/* rx_buffer_size */
+#ifndef LWS_LIBRARY_VERSION_NUMBER
+		0,									/* no_buffer_all_partial_tx v1.3 only */
 #endif
-		NULL,
-#if !defined(LWS_LIBRARY_VERSION_NUMBER)
-		0
+#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
+		1,									/* id */
+#endif
+#ifdef LWS_LIBRARY_VERSION_NUMBER
+		NULL,								/* user v1.4 on */
+#  if LWS_LIBRARY_VERSION_NUMBER >= 2003000
+		0									/* tx_packet_size v2.3.0 */
+#  endif
 #endif
 	},
 	{
 		"mqttv3.1",
 		callback_mqtt,
 		sizeof(struct libws_mqtt_data),
-		0,
-#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
-		1,
+		0,									/* rx_buffer_size */
+#ifndef LWS_LIBRARY_VERSION_NUMBER
+		0,									/* no_buffer_all_partial_tx v1.3 only */
 #endif
-		NULL,
-#if !defined(LWS_LIBRARY_VERSION_NUMBER)
-		0
+#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
+		2,									/* id */
+#endif
+#ifdef LWS_LIBRARY_VERSION_NUMBER
+		NULL,								/* user v1.4 on */
+#  if LWS_LIBRARY_VERSION_NUMBER >= 2003000
+		0									/* tx_packet_size v2.3.0 */
+#  endif
 #endif
 	},
-#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
-#  if defined(LWS_LIBRARY_VERSION_NUMBER)
-	{ NULL, NULL, 0, 0, 0, NULL}
-#  else
-	{ NULL, NULL, 0, 0, 0, NULL, 0}
-#  endif
-#else
-	{ NULL, NULL, 0, 0, NULL, 0}
+	{
+		NULL,
+		NULL,
+		0,
+		0,									/* rx_buffer_size */
+#ifndef LWS_LIBRARY_VERSION_NUMBER
+		0,									/* no_buffer_all_partial_tx v1.3 only */
 #endif
+#ifdef LWS_FEATURE_PROTOCOLS_HAS_ID_FIELD
+		0,									/* id */
+#endif
+#ifdef LWS_LIBRARY_VERSION_NUMBER
+		NULL,								/* user v1.4 on */
+#  if LWS_LIBRARY_VERSION_NUMBER >= 2003000
+		0									/* tx_packet_size v2.3.0 */
+#  endif
+#endif
+	}
 };
 
 static void easy_address(int sock, struct mosquitto *mosq)
@@ -205,7 +230,9 @@ static int callback_mqtt(struct libwebsocket_context *context,
 				return -1;
 			}
 			if(mosq->listener->max_connections > 0 && mosq->listener->client_count > mosq->listener->max_connections){
-				log__printf(NULL, MOSQ_LOG_NOTICE, "Client connection from %s denied: max_connections exceeded.", mosq->address);
+				if(db->config->connection_messages == true){
+					log__printf(NULL, MOSQ_LOG_NOTICE, "Client connection from %s denied: max_connections exceeded.", mosq->address);
+				}
 				mosquitto__free(mosq);
 				u->mosq = NULL;
 				return -1;
@@ -220,7 +247,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 			}
 			mosq = u->mosq;
 			if(mosq){
-				if(mosq->sock > 0){
+				if(mosq->sock != INVALID_SOCKET){
 					HASH_DELETE(hh_sock, db->contexts_by_sock, mosq);
 					mosq->sock = INVALID_SOCKET;
 					mosq->pollfd_index = -1;
@@ -409,6 +436,9 @@ static int callback_mqtt(struct libwebsocket_context *context,
 
 
 static char *http__canonical_filename(
+#ifndef LWS_LIBRARY_VERSION_NUMBER
+		struct libwebsocket_context *context,
+#endif
 		struct libwebsocket *wsi,
 		const char *in,
 		const char *http_dir)
@@ -521,7 +551,11 @@ static int callback_http(struct libwebsocket_context *context,
 				return -1;
 			}
 
+#if defined(LWS_LIBRARY_VERSION_NUMBER)
 			filename_canonical = http__canonical_filename(wsi, (char *)in, http_dir);
+#else
+			filename_canonical = http__canonical_filename(context, wsi, (char *)in, http_dir);
+#endif
 			if(!filename_canonical) return -1;
 
 			u->fptr = fopen(filename_canonical, "rb");
@@ -634,6 +668,14 @@ static int callback_http(struct libwebsocket_context *context,
 			}
 			break;
 
+#ifdef WITH_TLS
+		case LWS_CALLBACK_OPENSSL_PERFORM_CLIENT_CERT_VERIFICATION:
+			if(!len || (SSL_get_verify_result((SSL*)in) != X509_V_OK)){
+				return 1;
+			}
+			break;
+#endif
+
 		default:
 			return 0;
 	}
@@ -690,6 +732,9 @@ struct libwebsocket_context *mosq_websockets_init(struct mosquitto__listener *li
 #if LWS_LIBRARY_VERSION_MAJOR>1
 	info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 #endif
+	if(listener->socket_domain == AF_INET){
+		info.options |= LWS_SERVER_OPTION_DISABLE_IPV6;
+	}
 
 	user = mosquitto__calloc(1, sizeof(struct libws_mqtt_hack));
 	if(!user){

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,8 @@ and the Eclipse Distribution License is available at
 Contributors:
    Roger Light - initial implementation and documentation.
 */
+
+#include "config.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -119,7 +121,7 @@ int packet__queue(struct mosquitto *mosq, struct mosquitto__packet *packet)
 #  ifdef WITH_WEBSOCKETS
 	if(mosq->wsi){
 		libwebsocket_callback_on_writable(mosq->ws_context, mosq->wsi);
-		return 0;
+		return MOSQ_ERR_SUCCESS;
 	}else{
 		return packet__write(mosq);
 	}
@@ -139,7 +141,7 @@ int packet__queue(struct mosquitto *mosq, struct mosquitto__packet *packet)
 #endif
 	}
 
-	if(mosq->in_callback == false && mosq->threaded == false){
+	if(mosq->in_callback == false && mosq->threaded == mosq_ts_none){
 		return packet__write(mosq);
 	}else{
 		return MOSQ_ERR_SUCCESS;
@@ -347,7 +349,7 @@ int packet__write(struct mosquitto *mosq)
 			pthread_mutex_lock(&mosq->callback_mutex);
 			if(mosq->on_disconnect){
 				mosq->in_callback = true;
-				mosq->on_disconnect(mosq, mosq->userdata, 0);
+				mosq->on_disconnect(mosq, mosq->userdata, MOSQ_ERR_SUCCESS);
 				mosq->in_callback = false;
 			}
 			pthread_mutex_unlock(&mosq->callback_mutex);

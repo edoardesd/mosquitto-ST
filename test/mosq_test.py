@@ -6,7 +6,7 @@ import struct
 import sys
 import time
 
-def start_broker(filename, cmd=None, port=0, use_conf=False):
+def start_broker(filename, cmd=None, port=0, use_conf=False, expect_fail=False):
     delay = 0.1
 
     if use_conf == True:
@@ -43,7 +43,11 @@ def start_broker(filename, cmd=None, port=0, use_conf=False):
             c.close()
             time.sleep(delay)
             return broker
-    raise IOError
+
+    if expect_fail == False:
+        raise IOError
+    else:
+        return None
 
 def start_client(filename, cmd, env, port=1888):
     if cmd is None:
@@ -54,6 +58,7 @@ def start_client(filename, cmd, env, port=1888):
     cmd = cmd + [str(port)]
     return subprocess.Popen(cmd, env=env)
 
+
 def expect_packet(sock, name, expected):
     if len(expected) > 0:
         rlen = len(expected)
@@ -62,6 +67,7 @@ def expect_packet(sock, name, expected):
 
     packet_recvd = sock.recv(rlen)
     return packet_matches(name, packet_recvd, expected)
+
 
 def packet_matches(name, recvd, expected):
     if recvd != expected:
@@ -79,17 +85,24 @@ def packet_matches(name, recvd, expected):
     else:
         return 1
 
-def do_client_connect(connect_packet, connack_packet, hostname="localhost", port=1888, timeout=60, connack_error="connack"):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(timeout)
-    sock.connect((hostname, port))
-    sock.send(connect_packet)
 
-    if expect_packet(sock, connack_error, connack_packet):
+def do_send_receive(sock, send_packet, receive_packet, error_string="send receive error"):
+    sock.send(send_packet)
+
+    if expect_packet(sock, error_string, receive_packet):
         return sock
     else:
         sock.close()
         raise ValueError
+
+
+def do_client_connect(connect_packet, connack_packet, hostname="localhost", port=1888, timeout=60, connack_error="connack"):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    sock.connect((hostname, port))
+
+    return do_send_receive(sock, connect_packet, connack_packet, connack_error)
+
 
 def remaining_length(packet):
     l = min(5, len(packet))

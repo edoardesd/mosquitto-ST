@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2012-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -17,6 +17,7 @@ Contributors:
 #include "config.h"
 
 #include <errno.h>
+#include <openssl/opensslv.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/buffer.h>
@@ -288,6 +289,7 @@ int get_password(char *password, int len)
 	char pw1[MAX_BUFFER_LEN], pw2[MAX_BUFFER_LEN];
 
 	printf("Password: ");
+	fflush(stdout);
 	if(gets_quiet(pw1, MAX_BUFFER_LEN)){
 		fprintf(stderr, "Error: Empty password.\n");
 		return 1;
@@ -295,6 +297,7 @@ int get_password(char *password, int len)
 	printf("\n");
 
 	printf("Reenter password: ");
+	fflush(stdout);
 	if(gets_quiet(pw2, MAX_BUFFER_LEN)){
 		fprintf(stderr, "Error: Empty password.\n");
 		return 1;
@@ -385,7 +388,9 @@ int main(int argc, char *argv[])
 	signal(SIGINT, handle_sigint);
 	signal(SIGTERM, handle_sigint);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || OPENSSL_API_COMPAT < 0x10100000L
 	OpenSSL_add_all_digests();
+#endif
 
 	if(argc == 1){
 		print_usage();

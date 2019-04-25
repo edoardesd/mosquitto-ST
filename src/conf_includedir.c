@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -14,8 +14,9 @@ Contributors:
    Roger Light - initial implementation and documentation.
 */
 
-#include <config.h>
+#include "config.h"
 
+#include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,7 +37,7 @@ Contributors:
 #  include <ws2tcpip.h>
 #endif
 
-#if !defined(WIN32) && !defined(__CYGWIN__)
+#if !defined(WIN32) && !defined(__CYGWIN__) && !defined(__QNX__)
 #  include <sys/syslog.h>
 #endif
 
@@ -46,11 +47,32 @@ Contributors:
 #include "util_mosq.h"
 #include "mqtt3_protocol.h"
 
-int strcasecmp_p(const void *p1, const void *p2)
-{
-	return strcasecmp(*(const char **)p1, *(const char **)p2);
-}
 
+int scmp_p(const void *p1, const void *p2)
+{
+	const char *s1 = *(const char **)p1;
+	const char *s2 = *(const char **)p2;
+	int result;
+
+	while(s1[0] && s2[0]){
+		/* Sort by case insensitive part first */
+		result = toupper(s1[0]) - toupper(s2[0]);
+		if(result == 0){
+			/* Case insensitive part matched, now distinguish between case */
+			result = s1[0] - s2[0];
+			if(result != 0){
+				return result;
+			}
+		}else{
+			/* Return case insensitive match fail */
+			return result;
+		}
+		s1++;
+		s2++;
+	}
+
+	return s1[0] - s2[0];
+}
 
 #ifdef WIN32
 int config__get_dir_files(const char *include_dir, char ***files, int *file_count)
@@ -102,6 +124,9 @@ int config__get_dir_files(const char *include_dir, char ***files, int *file_coun
 
 	FindClose(fh);
 
+	if(l_files){
+		qsort(l_files, l_file_count, sizeof(char *), scmp_p);
+	}
 	*files = l_files;
 	*file_count = l_file_count;
 
@@ -111,6 +136,7 @@ int config__get_dir_files(const char *include_dir, char ***files, int *file_coun
 
 
 #ifndef WIN32
+
 int config__get_dir_files(const char *include_dir, char ***files, int *file_count)
 {
 	char **l_files = NULL;
@@ -160,6 +186,9 @@ int config__get_dir_files(const char *include_dir, char ***files, int *file_coun
 	}
 	closedir(dh);
 
+	if(l_files){
+		qsort(l_files, l_file_count, sizeof(char *), scmp_p);
+	}
 	*files = l_files;
 	*file_count = l_file_count;
 

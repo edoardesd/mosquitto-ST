@@ -64,15 +64,17 @@
 			certificate in order to connect successfully. In this case, the
 			second and third options, use_identity_as_username and
 			use_subject_as_username, become relevant. If set to true,
-			use_identity_as_user causes the Common Name (CN) from the client
-			certificate to be used instead of the MQTT username for access
-			control purposes. The password is not replaced because it is
-			assumed that only authenticated clients have valid certificates. If
-			use_identity_as_username is false, the client must authenticate as
-			normal (if required by password_file) through the MQTT options. The
-			same principle applies for the use_subject_as_username option, but
-			the entire certificate subject is used as the username instead of
-			just the CN.</para>
+			use_identity_as_username causes the Common Name (CN) from the
+			client certificate to be used instead of the MQTT username for
+			access control purposes. The password is not used because it is
+			assumed that only authenticated clients have valid certificates.
+			This means that any CA certificates you include in cafile or capath
+			will be able to issue client certificates that are valid for
+			connecting to your broker. If use_identity_as_username is false,
+			the client must authenticate as normal (if required by
+			password_file) through the MQTT options. The same principle applies
+			for the use_subject_as_username option, but the entire certificate
+			subject is used as the username instead of just the CN.</para>
 		<para>When using pre-shared-key based encryption through the psk_hint
 			and psk_file options, the client must provide a valid identity and
 			key in order to connect to the broker before any MQTT communication
@@ -196,6 +198,17 @@
 				</listitem>
 			</varlistentry>
 			<varlistentry>
+				<term><option>allow_zero_length_clientid</option> [ true | false ]</term>
+				<listitem>
+					<para>MQTT 3.1.1 allows clients to connect with a zero
+						length client id and have the broker generate a client
+						id for them. Use this option to allow/disallow this
+						behaviour. Defaults to true.</para>
+					<para>See also the <option>auto_id_prefix</option> option.</para>
+					<para>Reloaded on reload signal.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
 				<term><option>auth_opt_*</option> <replaceable>value</replaceable></term>
 				<listitem>
 					<para>Options to be passed to the auth plugin. See the
@@ -245,6 +258,17 @@
 				</listitem>
 			</varlistentry>
 			<varlistentry>
+				<term><option>auto_id_prefix</option> <replaceable>prefix</replaceable></term>
+				<listitem>
+					<para>If <option>allow_zero_length_clientid</option> is
+						<replaceable>true</replaceable>, this option allows you
+						to set a string that will be prefixed to the
+						automatically generated client ids to aid visibility in
+						logs. Defaults to no prefix.</para>
+					<para>Reloaded on reload signal.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
 				<term><option>autosave_interval</option> <replaceable>seconds</replaceable></term>
 				<listitem>
 					<para>The number of seconds that mosquitto will wait
@@ -270,6 +294,24 @@
 						<option>autosave_interval</option> as a time in
 						seconds.</para>
 					<para>Reloaded on reload signal.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
+				<term><option>check_retain_source</option> [ true | false ]</term>
+				<listitem>
+					<para>This option affects the scenario when a client
+						subscribes to a topic that has retained messages. It is
+						possible that the client that published the retained
+						message to the topic had access at the time they
+						published, but that access has been subsequently
+						removed. If <option>check_retain_source</option> is set
+						to true, the default, the source of a retained message
+						will be checked for access rights before it is
+						republished. When set to false, no check will be made
+						and the retained message will always be
+						published.</para>
+					<para>This option applies globally, regardless of the
+						<option>per_listener_settings</option> option.</para>
 				</listitem>
 			</varlistentry>
 			<varlistentry>
@@ -307,6 +349,55 @@
 						file. This option will only be processed from the main
 						configuration file. The directory specified must not
 						contain the main configuration file.</para>
+					<para>The configuration files in
+						<option>include_dir</option> are loaded in case
+						sensitive alphabetical order, with the upper case of
+						each letter ordered before the lower case of the same
+						letter.</para>
+						<example title="Load Order for include_dir" label="Load Order for include_dir">
+							<para>Given the files
+								<replaceable>b.conf</replaceable>,
+								<replaceable>A.conf</replaceable>,
+								<replaceable>01.conf</replaceable>,
+								<replaceable>a.conf</replaceable>,
+								<replaceable>B.conf</replaceable>, and
+								<replaceable>00.conf</replaceable> inside
+								<option>include_dir</option>, the config files
+								would be loaded in this order:</para>
+						<programlisting language="config">
+00.conf
+01.conf
+A.conf
+a.conf
+B.conf
+b.conf
+</programlisting></example>
+					<para>If this option is used multiple times, then each
+						<option>include_dir</option> option is processed
+						completely in the order that they are written in the
+						main configuration file.</para>
+						<example title="Load Order for Multiple include_dir" label="Load Order for Multiple include_dir">
+							<para>Assuming a directory
+								<replaceable>one.d</replaceable> containing
+								files <replaceable>B.conf</replaceable> and
+								<replaceable>C.conf</replaceable>, and a second
+								directory <replaceable>two.d</replaceable>
+								containing files
+								<replaceable>A.conf</replaceable> and
+								<replaceable>D.conf</replaceable>, and a
+								config:</para>
+						<programlisting language="config">
+include_dir one.d
+include_dir two.d
+</programlisting><para>Then the config files would be loaded in this order:</para>
+						<programlisting language="config">
+# files from one.d
+B.conf
+C.conf
+# files from two.d
+A.conf
+D.conf
+</programlisting></example>
 				</listitem>
 			</varlistentry>
 			<varlistentry>
@@ -493,6 +584,10 @@
 						<option>auth_plugin</option>,
 						<option>auth_opt_*</option>,
 						<option>auto_id_prefix</option>.</para>
+					<para>Note that if set to true, then a durable client (i.e.
+						with clean session set to false) that has disconnected
+						will use the ACL settings defined for the listener that
+						it was most recently connected to.</para>
 					<para>The default behaviour is for this to be set to
 						<replaceable>false</replaceable>, which maintains the
 						settings behaviour from previous versions of
@@ -763,7 +858,7 @@
 							client connected to a listener with mount point
 							<replaceable>example</replaceable> can only see
 							messages that are published in the topic hierarchy
-							<replaceable>example</replaceable> and above.</para>
+							<replaceable>example</replaceable> and below.</para>
 						<para>Not reloaded on reload signal.</para>
 					</listitem>
 				</varlistentry>
@@ -788,6 +883,27 @@
 							<option>keyfile</option> and
 							<option>ciphers</option> options are
 							supported.</para>
+						<para>Not reloaded on reload signal.</para>
+					</listitem>
+				</varlistentry>
+				<varlistentry>
+					<term><option>socket_domain</option> [ ipv4 | ipv6 ]</term>
+					<listitem>
+						<para>By default, a listener will attempt to listen on
+							all supported IP protocol versions. If you do not
+							have an IPv4 or IPv6 interface you may wish to
+							disable support for either of those protocol
+							versions. In particular, note that due to the
+							limitations of the websockets library, it will only
+							ever attempt to open IPv6 sockets if IPv6 support
+							is compiled in, and so will fail if IPv6 is not
+							available.</para>
+						<para>Set to <option>ipv4</option> to force the
+							listener to only use IPv4, or set to
+							<option>ipv6</option> to force the listener to only
+							use IPv6. If you want support for both IPv4 and
+							IPv6, then do not use the
+							<option>socket_domain</option> option.</para>
 						<para>Not reloaded on reload signal.</para>
 					</listitem>
 				</varlistentry>
@@ -1030,6 +1146,8 @@
 						bridge to connect to. This must be given for each
 						bridge connection. If the port is not specified, the
 						default of 1883 is used.</para>
+					<para>If you use an IPv6 address, then the port is not
+						optional.</para>
 					<para>Multiple host addresses can be specified on the
 						address config. See the <option>round_robin</option>
 						option for more details on the behaviour of bridges
@@ -1314,27 +1432,35 @@
 						<replaceable>""</replaceable>. Using the empty marker
 						for the topic itself is also valid. The table below
 						defines what combination of empty or value is
-						valid.</para>
+						valid. The <option>Full Local Topic</option> and
+						<option>Full Remote Topic</option> show the resulting
+						topics that would be used on the local and remote ends
+						of the bridge. For example, for the first table row if
+						you publish to <option>L/topic</option> on the local
+						broker, then the remote broker will receive a message
+						on the topic <option>R/topic</option>.</para>
+
 					<informaltable>
-						<tgroup cols="5">
+						<tgroup cols="6">
 							<thead>
 								<row>
-									<entry></entry>
-									<entry><emphasis>Topic</emphasis></entry>
+									<entry><emphasis>Pattern</emphasis></entry>
 									<entry><emphasis>Local Prefix</emphasis></entry>
 									<entry><emphasis>Remote Prefix</emphasis></entry>
 									<entry><emphasis>Validity</emphasis></entry>
+									<entry><emphasis>Full Local Topic</emphasis></entry>
+									<entry><emphasis>Full Remote Topic</emphasis></entry>
 							</row>
 							</thead>
 							<tbody>
-								<row><entry>1</entry><entry>value</entry><entry>value</entry><entry>value</entry><entry>valid</entry></row>
-								<row><entry>2</entry><entry>value</entry><entry>value</entry><entry>""</entry><entry>valid</entry></row>
-								<row><entry>3</entry><entry>value</entry><entry>""</entry><entry>value</entry><entry>valid</entry></row>
-								<row><entry>4</entry><entry>value</entry><entry>""</entry><entry>""</entry><entry>valid (no remapping)</entry></row>
-								<row><entry>5</entry><entry>""</entry><entry>value</entry><entry>value</entry><entry>valid (remap single local topic to remote)</entry></row>
-								<row><entry>6</entry><entry>""</entry><entry>value</entry><entry>""</entry><entry>invalid</entry></row>
-								<row><entry>7</entry><entry>""</entry><entry>""</entry><entry>value</entry><entry>invalid</entry></row>
-								<row><entry>8</entry><entry>""</entry><entry>""</entry><entry>""</entry><entry>invalid</entry></row>
+								<row><entry>pattern</entry><entry>L/</entry><entry>R/</entry><entry>valid</entry><entry>L/pattern</entry><entry>R/pattern</entry></row>
+								<row><entry>pattern</entry><entry>L/</entry><entry>""</entry><entry>valid</entry><entry>L/pattern</entry><entry>pattern</entry></row>
+								<row><entry>pattern</entry><entry>""</entry><entry>R/</entry><entry>valid</entry><entry>pattern</entry><entry>R/pattern</entry></row>
+								<row><entry>pattern</entry><entry>""</entry><entry>""</entry><entry>valid (no remapping)</entry><entry>pattern</entry><entry>pattern</entry></row>
+								<row><entry>""</entry><entry>local</entry><entry>remote</entry><entry>valid (remap single local topic to remote)</entry><entry>local</entry><entry>remote</entry></row>
+								<row><entry>""</entry><entry>local</entry><entry>""</entry><entry>invalid</entry><entry></entry><entry></entry></row>
+								<row><entry>""</entry><entry>""</entry><entry>remote</entry><entry>invalid</entry><entry></entry><entry></entry></row>
+								<row><entry>""</entry><entry>""</entry><entry>""</entry><entry>invalid</entry><entry></entry><entry></entry></row>
 							</tbody>
 						</tgroup>
 					</informaltable>

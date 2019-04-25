@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -14,10 +14,10 @@ Contributors:
    Roger Light - initial implementation and documentation.
 */
 
+#include "config.h"
+
 #include <assert.h>
 #include <time.h>
-
-#include "config.h"
 
 #include "mosquitto_broker_internal.h"
 #include "memory_mosq.h"
@@ -99,7 +99,9 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 {
 	struct mosquitto__packet *packet;
 	struct mosquitto_client_msg *msg, *next;
+#ifdef WITH_BRIDGE
 	int i;
+#endif
 
 	if(!context) return;
 
@@ -157,7 +159,7 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 		assert(db); /* db can only be NULL here if the client hasn't sent a
 					   CONNECT and hence wouldn't have an id. */
 
-		HASH_DELETE(hh_id, db->contexts_by_id, context);
+		context__remove_from_by_id(db, context);
 		mosquitto__free(context->id);
 		context->id = NULL;
 	}
@@ -193,6 +195,13 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 		context->queued_msgs = NULL;
 		context->last_queued_msg = NULL;
 	}
+#if defined(WITH_BROKER) && defined(__GLIBC__) && defined(WITH_ADNS)
+	if(context->adns){
+		gai_cancel(context->adns);
+		mosquitto__free((struct addrinfo *)context->adns->ar_request);
+		mosquitto__free(context->adns);
+	}
+#endif
 	if(do_free){
 		mosquitto__free(context);
 	}
@@ -202,7 +211,8 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 void context__send_will(struct mosquitto_db *db, struct mosquitto *ctxt)
 {
 	if(ctxt->state != mosq_cs_disconnecting && ctxt->will){
-		if(mosquitto_acl_check(db, ctxt, ctxt->will->topic, MOSQ_ACL_WRITE) == MOSQ_ERR_SUCCESS){
+		if(mosquitto_acl_check(db, ctxt, ctxt->will->topic, ctxt->will->payloadlen, ctxt->will->payload,
+							   ctxt->will->qos, ctxt->will->retain, MOSQ_ACL_WRITE) == MOSQ_ERR_SUCCESS){
 			/* Unexpected disconnect, queue the client will. */
 			db__messages_easy_queue(db, ctxt, ctxt->will->topic, ctxt->will->qos, ctxt->will->payloadlen, ctxt->will->payload, ctxt->will->retain);
 		}
@@ -248,3 +258,11 @@ void context__free_disused(struct mosquitto_db *db)
 	db->ll_for_free = NULL;
 }
 
+
+void context__remove_from_by_id(struct mosquitto_db *db, struct mosquitto *context)
+{
+	if(context->removed_from_by_id == false && context->id){
+		HASH_DELETE(hh_id, db->contexts_by_id, context);
+		context->removed_from_by_id = true;
+	}
+}

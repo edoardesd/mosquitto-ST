@@ -1,3 +1,268 @@
+1.5.8 - 20190228
+================
+
+Broker:
+- Fix clients being disconnected when ACLs are in use. This only affects the
+  case where a client connects using a username, and the anonymous ACL list is
+  defined but specific user ACLs are not defined. Closes #1162.
+- Make error messages for missing config file clearer.
+- Fix some Coverity Scan reported errors that could occur when the broker was
+  already failing to start.
+- Fix broken mosquitto_passwd on FreeBSD. Closes #1032.
+- Fix delayed bridge local subscriptions causing missing messages.
+  Closes #1174.
+
+Library:
+- Use higher resolution timer for random initialisation of client id
+  generation. Closes #1177.
+- Fix some Coverity Scan reported errors that could occur when the library was
+  already quitting.
+
+
+1.5.7 - 20190213
+================
+
+Broker:
+- Fix build failure when using WITH_ADNS=yes
+- Ensure that an error occurs if `per_listener_settings true` is given after
+  other security options. Closes #1149.
+- Fix include_dir not sorting config files before loading. This was partially
+  fixed in 1.5 previously.
+- Improve documentation around the `include_dir` option. Closes #1154.
+- Fix case where old unreferenced msg_store messages were being saved to the
+  persistence file, bloating its size unnecessarily. Closes #389.
+
+Library:
+- Fix `mosquitto_topic_matches_sub()` not returning MOSQ_ERR_INVAL for
+  invalid subscriptions like `topic/#abc`. This only affects the return value,
+  not the match/no match result, which was already correct.
+
+Build:
+- Don't require C99 compiler.
+- Add rewritten build test script and remove some build warnings.
+
+
+1.5.6 - 20190206
+================
+
+Security:
+- CVE-2018-12551: If Mosquitto is configured to use a password file for
+  authentication, any malformed data in the password file will be treated as
+  valid. This typically means that the malformed data becomes a username and no
+  password. If this occurs, clients can circumvent authentication and get access
+  to the broker by using the malformed username. In particular, a blank line
+  will be treated as a valid empty username. Other security measures are
+  unaffected. Users who have only used the mosquitto_passwd utility to create
+  and modify their password files are unaffected by this vulnerability.
+  Affects version 1.0 to 1.5.5 inclusive.
+- CVE-2018-12550: If an ACL file is empty, or has only blank lines or
+  comments, then mosquitto treats the ACL file as not being defined, which
+  means that no topic access is denied. Although denying access to all topics
+  is not a useful configuration, this behaviour is unexpected and could lead
+  to access being incorrectly granted in some circumstances. This is now
+  fixed. Affects versions 1.0 to 1.5.5 inclusive.
+- CVE-2018-12546. If a client publishes a retained message to a topic that
+  they have access to, and then their access to that topic is revoked, the
+  retained message will still be delivered to future subscribers. This
+  behaviour may be undesirable in some applications, so a configuration option
+  `check_retain_source` has been introduced to enforce checking of the
+  retained message source on publish.
+
+Broker:
+- Fixed comment handling for config options that have optional arguments.
+- Improved documentation around bridge topic remapping.
+- Handle mismatched handshakes (e.g. QoS1 PUBLISH with QoS2 reply) properly.
+- Fix spaces not being allowed in the bridge remote_username option. Closes
+  #1131.
+- Allow broker to always restart on Windows when using `log_dest file`. Closes
+  #1080.
+- Fix Will not being sent for Websockets clients. Closes #1143.
+- Windows: Fix possible crash when client disconnects. Closes #1137.
+- Fixed durable clients being unable to receive messages when offline, when
+  per_listener_settings was set to true. Closes #1081.
+- Add log message for the case where a client is disconnected for sending a
+  topic with invalid UTF-8. Closes #1144.
+
+Library:
+- Fix TLS connections not working over SOCKS.
+- Don't clear SSL context when TLS connection is closed, meaning if a user
+  provided an external SSL_CTX they have less chance of leaking references.
+
+Build:
+- Fix comparison of boolean values in CMake build. Closes #1101.
+- Fix compilation when openssl deprecated APIs are not available.
+  Closes #1094.
+- Man pages can now be built on any system. Closes #1139.
+
+
+1.5.5 - 20181211
+================
+
+Security:
+- If `per_listener_settings` is set to true, then the `acl_file` setting was
+  ignored for the "default listener" only. This has been fixed. This does not
+  affect any listeners defined with the `listener` option. Closes #1073.
+  This is now tracked as CVE-2018-20145.
+
+Broker:
+- Add `socket_domain` option to allow listeners to disable IPv6 support.
+  This is required to work around a problem in libwebsockets that means
+  sockets only listen on IPv6 by default if IPv6 support is compiled in.
+  Closes #1004.
+- When using ADNS, don't ask for all network protocols when connecting,
+  because this can lead to confusing "Protocol not supported" errors if the
+  network is down. Closes #1062.
+- Fix outgoing retained messages not being sent by bridges on initial
+  connection. Closes #1040.
+- Don't reload auth_opt_ options on reload, to match the behaviour of the
+  other plugin options. Closes #1068.
+- Print message on error when installing/uninstalling as a Windows service.
+- All non-error connect/disconnect messages are controlled by the
+  `connection_messages` option. Closes #772. Closes #613. Closes #537.
+
+Library:
+- Fix reconnect delay backoff behaviour. Closes #1027.
+- Don't call on_disconnect() twice if keepalive tests fail. Closes #1067.
+
+Client:
+- Always print leading zeros in mosquitto_sub when output format is hex.
+  Closes #1066.
+
+Build:
+- Fix building where TLS-PSK is not available. Closes #68.
+
+
+1.5.4 - 20181108
+================
+
+Security:
+- When using a TLS enabled websockets listener with "require_certificate"
+  enabled, the mosquitto broker does not correctly verify client certificates.
+  This is now fixed. All other security measures operate as expected, and in
+  particular non-websockets listeners are not affected by this. Closes #996.
+
+Broker:
+- Process all pending messages even when a client has disconnected. This means
+  a client that send a PUBLISH then DISCONNECT quickly, then disconnects will
+  have its DISCONNECT message processed properly and so no Will will be sent.
+  Closes #7.
+- $SYS/broker/clients/disconnected should never be negative. Closes #287.
+- Give better error message if a client sends a password without a username.
+  Closes #1015.
+- Fix bridge not honoring restart_timeout. Closes #1019.
+- Don't disconnect a client if an auth plugin denies access to SUBSCRIBE.
+  Closes #1016.
+
+Library:
+- Fix memory leak that occurred if mosquitto_reconnect() was used when TLS
+  errors were present. Closes #592.
+- Fix TLS connections when using an external event loop with
+  mosquitto_loop_read() and mosquitto_write(). Closes #990.
+
+Build:
+- Fix clients not being compiled with threading support when using CMake.
+  Closes #983.
+- Header fixes for FreeBSD. Closes #977.
+- Use _GNU_SOURCE to fix build errors in websockets and getaddrinfo usage.
+  Closes #862 and #933.
+- Fix builds on QNX 7.0.0. Closes #1018.
+
+
+1.5.3 - 20180925
+================
+
+Security:
+- Fix CVE-2018-12543. If a message is sent to Mosquitto with a topic that
+  begins with $, but is not $SYS, then an assert that should be unreachable is
+  triggered and Mosquitto will exit.
+
+Broker:
+- Elevate log level to warning for situation when socket limit is hit.
+- Remove requirement to use `user root` in snap package config files.
+- Fix retained messages not sent by bridges on outgoing topics at the first
+  connection. Closes #701.
+- Documentation fixes. Closes #520, #600.
+- Fix duplicate clients being added to by_id hash before the old client was
+  removed. Closes #645.
+- Fix Windows version not starting if include_dir did not contain any files.
+  Closes #566.
+- When an authentication plugin denied access to a SUBSCRIBE, the client would
+  be disconnected incorrectly. This has been fixed. Closes #1016.
+
+Build:
+- Various fixes to ease building.
+
+
+1.5.2 - 20180919
+================
+
+Broker:
+- Fix build when using WITH_ADNS=yes.
+- Fix incorrect call to setsockopt() for TCP_NODELAY. Closes #941.
+- Fix excessive CPU usage when the number of sockets exceeds the system limit.
+  Closes #948.
+- Fix for bridge connections when using WITH_ADNS=yes.
+- Fix round_robin false behaviour. Closes #481.
+- Fix segfault on HUP when bridges and security options are configured.
+  Closes #965.
+
+Library:
+- Fix situation where username and password is used with SOCKS5 proxy. Closes
+  #927.
+- Fix SOCKS5 behaviour when passing IP addresses. Closes #927.
+
+Build:
+- Make it easier to build without bundled uthash.h using "WITH_BUNDLED_DEPS=no".
+- Fix build with OPENSSL_NO_ENGINE. Closes #932.
+
+
+1.5.1 - 20180816
+================
+
+Broker:
+- Fix plugin cleanup function not being called on exit of the broker.
+  Closes #900.
+- Print more OpenSSL errors when loading certificates/keys fail.
+- Use AF_UNSPEC etc. instead of PF_UNSPEC to comply with POSIX. Closes #863.
+- Remove use of AI_ADDRCONFIG, which means the broker can be used on systems
+  where only the loopback interface is defined. Closes #869, Closes #901.
+- Fix IPv6 addresses not being able to be used as bridge addresses.
+  Closes #886.
+- All clients now time out if they exceed their keepalive*1.5, rather than
+  just reach it. This was inconsistent in two places.
+- Fix segfault on startup if bridge CA certificates could not be read.
+  Closes #851.
+- Fix problem opening listeners on Pi caused by unsigned char being default.
+  Found via #849.
+- ACL patterns that do not contain either %c or %u now produce a warning in
+  the log. Closes #209.
+- Fix bridge publishing failing when per_listener_settings was true. Closes
+  #860.
+- Fix `use_identity_as_username true` not working. Closes #833.
+- Fix UNSUBACK messages not being logged. Closes #903.
+- Fix possible endian issue when reading the `memory_limit` option.
+- Fix building for libwebsockets < 1.6.
+- Fix accessor functions for username and client id when used in plugin auth
+  check.
+
+Library:
+- Fix some places where return codes were incorrect, including to the
+  on_disconnect() callback. This has resulted in two new error codes,
+  MOSQ_ERR_KEEPALIVE and MOSQ_ERR_LOOKUP.
+- Fix connection problems when mosquitto_loop_start() was called before
+  mosquitto_connect_async(). Closes #848.
+
+Clients:
+- When compiled using WITH_TLS=no, the default port was incorrectly being set
+  to -1. This has been fixed.
+- Fix compiling on Mac OS X <10.12. Closes #813 and #240.
+
+Build:
+- Fixes for building on NetBSD. Closes #258.
+- Fixes for building on FreeBSD.
+- Add support for compiling with static libwebsockets library.
+
+
 1.5 - 20180502
 ==============
 

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -26,14 +26,14 @@ Contributors:
 #endif
 
 #ifdef WITH_BROKER
-void mosquitto__check_keepalive(struct mosquitto_db *db, struct mosquitto *mosq);
+int mosquitto__check_keepalive(struct mosquitto_db *db, struct mosquitto *mosq);
 #else
-void mosquitto__check_keepalive(struct mosquitto *mosq);
+int mosquitto__check_keepalive(struct mosquitto *mosq);
 #endif
 uint16_t mosquitto__mid_generate(struct mosquitto *mosq);
 FILE *mosquitto__fopen(const char *path, const char *mode, bool restrict_read);
 
-#ifdef WITH_TLS_PSK
+#ifdef FINAL_WITH_TLS_PSK
 int mosquitto__hex2bin(const char *hex, unsigned char *bin, int bin_max_len);
 #endif
 

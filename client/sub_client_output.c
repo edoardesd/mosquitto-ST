@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2009-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -14,7 +14,7 @@ Contributors:
    Roger Light - initial implementation and documentation.
 */
 
-#define _POSIX_C_SOURCE 200809L
+#include "config.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -30,6 +30,10 @@ Contributors:
 #define snprintf sprintf_s
 #endif
 
+#ifdef __APPLE__
+#  include <sys/time.h>
+#endif
+
 #include <mosquitto.h>
 #include "client_shared.h"
 
@@ -38,6 +42,8 @@ static int get_time(struct tm **ti, long *ns)
 {
 #ifdef WIN32
 	SYSTEMTIME st;
+#elif defined(__APPLE__)
+	struct timeval tv;
 #else
 	struct timespec ts;
 #endif
@@ -48,6 +54,10 @@ static int get_time(struct tm **ti, long *ns)
 
 	GetLocalTime(&st);
 	*ns = st.wMilliseconds*1000000L;
+#elif defined(__APPLE__)
+	gettimeofday(&tv, NULL);
+	s = tv.tv_sec;
+	*ns = tv.tv_usec*1000;
 #else
 	if(clock_gettime(CLOCK_REALTIME, &ts) != 0){
 		fprintf(stderr, "Error obtaining system time.\n");
@@ -75,11 +85,11 @@ static void write_payload(const unsigned char *payload, int payloadlen, int hex)
 		(void)fwrite(payload, 1, payloadlen, stdout);
 	}else if(hex == 1){
 		for(i=0; i<payloadlen; i++){
-			fprintf(stdout, "%x", payload[i]);
+			fprintf(stdout, "%02x", payload[i]);
 		}
 	}else if(hex == 2){
 		for(i=0; i<payloadlen; i++){
-			fprintf(stdout, "%X", payload[i]);
+			fprintf(stdout, "%02X", payload[i]);
 		}
 	}
 }

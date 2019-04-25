@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2016-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -105,7 +105,7 @@ void handle_sigusr2(int signal)
 DWORD WINAPI SigThreadProc(void* data)
 {
 	TCHAR evt_name[MAX_PATH];
-	static HANDLE evt[4];
+	static HANDLE evt[3];
 	int pid = GetCurrentProcessId();
 
 	sprintf_s(evt_name, MAX_PATH, "mosq%d_shutdown", pid);

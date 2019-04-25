@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2010-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2010-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -107,6 +107,8 @@ enum mosquitto_client_state {
 	mosq_cs_socks5_userpass_reply = 13,
 	mosq_cs_socks5_send_userpass = 14,
 	mosq_cs_expiring = 15,
+	mosq_cs_connecting = 16,
+	mosq_cs_duplicate = 17, /* client that has been taken over by another with the same id */
 };
 
 enum mosquitto__protocol {
@@ -206,6 +208,7 @@ struct mosquitto {
 #endif
 	bool clean_session;
 #ifdef WITH_BROKER
+	bool removed_from_by_id; /* True if removed from by_id hash */
 	bool is_dropping;
 	bool is_bridge;
 	struct mosquitto__bridge *bridge;

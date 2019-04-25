@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2014-2018 Roger Light <roger@atchoo.org>
+Copyright (c) 2014-2019 Roger Light <roger@atchoo.org>
 
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
@@ -66,7 +66,7 @@ struct mosq_config {
 	char *ciphers;
 	bool insecure;
 	char *tls_version;
-#  ifdef WITH_TLS_PSK
+#  ifdef FINAL_WITH_TLS_PSK
 	char *psk;
 	char *psk_identity;
 #  endif
