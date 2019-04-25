@@ -1,3 +1,49 @@
+mosquitto (1.5.6-1) unstable; urgency=medium
+  
+  * SECURITY UPDATE: If Mosquitto is configured to use a password file for
+    authentication, any malformed data in the password file will be treated as
+    valid. This typically means that the malformed data becomes a username and
+    no password. If this occurs, clients can circumvent authentication and get
+    access to the broker by using the malformed username. In particular, a blank
+    line will be treated as a valid empty username. Other security measures are
+    unaffected. Users who have only used the mosquitto_passwd utility to create
+    and modify their password files are unaffected by this vulnerability.
+    - debian/patches/mosquitto-1.4.x-cve-2018-12551.patch: this fix introduces
+      more stringent parsing tests on the password file data.
+    - CVE-2018-12551
+  * SECURITY UPDATE: If an ACL file is empty, or has only blank lines or
+    comments, then mosquitto treats the ACL file as not being defined, which
+    means that no topic access is denied. Although denying access to all
+    topics is not a useful configuration, this behaviour is unexpected and
+    could lead to access being incorrectly granted in some circumstances.
+    - debian/patches/mosquitto-1.4.x-cve-2018-12550.patch: this fix ensures
+      that if an ACL file is defined but no rules are defined, then access will
+      be denied.
+    - CVE-2018-12550
+  * SECURITY UPDATE: If a client publishes a retained message to a topic that
+    they have access to, and then their access to that topic is revoked, the
+    retained message will still be delivered to future subscribers. This
+    behaviour may be undesirable in some applications, so a configuration
+    option `check_retain_source` has been introduced to enforce checking of
+    the retained message source on publish.
+    - debian/patches/mosquitto-1.4.8-cve-2018-12546.patch: this patch stores
+      the originator of the retained message, so security checking can be
+      carried out before re-publishing. The complexity of the patch is due to
+      the need to save this information across broker restarts.
+    - CVE-2018-12546
+  * New upstream release.
+  * Bump standards version to 4.3.0, no changes needed.
+  * fix-step3.patch: fix compilation error.
+
+ -- Roger A. Light <roger@atchoo.org>  Thu, 07 Feb 2019 16:00:52 +0000
+
+mosquitto (1.5.5-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Only chown mosquitto.log if it exists. (Closes: #916558)
+
+ -- Andreas Henriksson <andreas@fatal.se>  Sat, 22 Dec 2018 16:54:06 +0100
+
 mosquitto (1.5.5-1) unstable; urgency=medium
 
   * SECURITY UPDATE: If the option `per_listener_settings` was set to true,
