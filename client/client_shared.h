@@ -29,6 +29,8 @@ Contributors:
 
 #define CLIENT_PUB 1
 #define CLIENT_SUB 2
+#define CLIENT_RR 3
+#define CLIENT_RESPONSE_TOPIC 4
 
 struct mosq_config {
 	char *id;
@@ -39,12 +41,14 @@ struct mosq_config {
 	int port;
 	int qos;
 	bool retain;
-	int pub_mode; /* pub */
-	char *file_input; /* pub */
-	char *message; /* pub */
-	long msglen; /* pub */
-	char *topic; /* pub */
+	int pub_mode; /* pub, rr */
+	char *file_input; /* pub, rr */
+	char *message; /* pub, rr */
+	long msglen; /* pub, rr */
+	char *topic; /* pub, rr */
 	char *bind_address;
+	int repeat_count; /* pub */
+	struct timeval repeat_delay; /* pub */
 #ifdef WITH_SRV
 	bool use_srv;
 #endif
@@ -65,7 +69,11 @@ struct mosq_config {
 	char *keyfile;
 	char *ciphers;
 	bool insecure;
+	char *tls_alpn;
 	char *tls_version;
+	char *tls_engine;
+	char *tls_engine_kpass_sha1;
+	char *keyform;
 #  ifdef FINAL_WITH_TLS_PSK
 	char *psk;
 	char *psk_identity;
@@ -74,8 +82,10 @@ struct mosq_config {
 	bool clean_session;
 	char **topics; /* sub */
 	int topic_count; /* sub */
+	bool exit_after_sub; /* sub */
 	bool no_retain; /* sub */
 	bool retained_only; /* sub */
+	bool remove_retained; /* sub */
 	char **filter_outs; /* sub */
 	int filter_out_count; /* sub */
 	char **unsub_topics; /* sub */
@@ -85,18 +95,29 @@ struct mosq_config {
 	int msg_count; /* sub */
 	char *format; /* sub */
 	int timeout; /* sub */
+	int sub_opts; /* sub */
 #ifdef WITH_SOCKS
 	char *socks5_host;
 	int socks5_port;
 	char *socks5_username;
 	char *socks5_password;
 #endif
+	mosquitto_property *connect_props;
+	mosquitto_property *publish_props;
+	mosquitto_property *subscribe_props;
+	mosquitto_property *unsubscribe_props;
+	mosquitto_property *disconnect_props;
+	mosquitto_property *will_props;
+	bool have_topic_alias; /* pub */
+	char *response_topic; /* rr */
 };
 
 int client_config_load(struct mosq_config *config, int pub_or_sub, int argc, char *argv[]);
 void client_config_cleanup(struct mosq_config *cfg);
 int client_opts_set(struct mosquitto *mosq, struct mosq_config *cfg);
-int client_id_generate(struct mosq_config *cfg, const char *id_base);
+int client_id_generate(struct mosq_config *cfg);
 int client_connect(struct mosquitto *mosq, struct mosq_config *cfg);
+
+int cfg_parse_property(struct mosq_config *cfg, int argc, char *argv[], int *idx);
 
 #endif

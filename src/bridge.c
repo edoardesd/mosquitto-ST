@@ -29,6 +29,7 @@ Contributors:
 #include <ws2tcpip.h>
 #endif
 
+#include "mqtt_protocol.h"
 #include "mosquitto.h"
 #include "mosquitto_broker_internal.h"
 #include "mosquitto_internal.h"
@@ -42,6 +43,9 @@ Contributors:
 #include "will_mosq.h"
 
 #ifdef WITH_BRIDGE
+
+static void bridge__backoff_step(struct mosquitto *context);
+static void bridge__backoff_reset(struct mosquitto *context);
 
 int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 {
@@ -80,8 +84,10 @@ int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 	new_context->tls_certfile = new_context->bridge->tls_certfile;
 	new_context->tls_keyfile = new_context->bridge->tls_keyfile;
 	new_context->tls_cert_reqs = SSL_VERIFY_PEER;
+	new_context->tls_ocsp_required = new_context->bridge->tls_ocsp_required;
 	new_context->tls_version = new_context->bridge->tls_version;
 	new_context->tls_insecure = new_context->bridge->tls_insecure;
+	new_context->tls_alpn = new_context->bridge->tls_alpn;
 #ifdef FINAL_WITH_TLS_PSK
 	new_context->tls_psk_identity = new_context->bridge->tls_psk_identity;
 	new_context->tls_psk = new_context->bridge->tls_psk;
@@ -119,23 +125,23 @@ int bridge__connect_step1(struct mosquitto_db *db, struct mosquitto *context)
 
 	if(!context || !context->bridge) return MOSQ_ERR_INVAL;
 
-	context->state = mosq_cs_new;
+	context__set_state(context, mosq_cs_new);
 	context->sock = INVALID_SOCKET;
 	context->last_msg_in = mosquitto_time();
 	context->next_msg_out = mosquitto_time() + context->bridge->keepalive;
 	context->keepalive = context->bridge->keepalive;
-	context->clean_session = context->bridge->clean_session;
+	context->clean_start = context->bridge->clean_start;
 	context->in_packet.payload = NULL;
 	context->ping_t = 0;
 	context->bridge->lazy_reconnect = false;
 	bridge__packet_cleanup(context);
 	db__message_reconnect_reset(db, context);
 
-	if(context->clean_session){
+	if(context->clean_start){
 		db__messages_delete(db, context);
 	}
 
-	/* Delete all local subscriptions even for clean_session==false. We don't
+	/* Delete all local subscriptions even for clean_start==false. We don't
 	 * remove any messages and the next loop carries out the resubscription
 	 * anyway. This means any unwanted subs will be removed.
 	 */
@@ -144,19 +150,33 @@ int bridge__connect_step1(struct mosquitto_db *db, struct mosquitto *context)
 	for(i=0; i<context->bridge->topic_count; i++){
 		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
 			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
-			if(sub__add(db, context, context->bridge->topics[i].local_topic, context->bridge->topics[i].qos, &db->subs)) return 1;
+			if(sub__add(db,
+						context,
+						context->bridge->topics[i].local_topic,
+						context->bridge->topics[i].qos,
+						0,
+						MQTT_SUB_OPT_NO_LOCAL | MQTT_SUB_OPT_RETAIN_AS_PUBLISHED,
+						&db->subs) > 0){
+				return 1;
+			}
+			sub__retain_queue(db, context,
+					context->bridge->topics[i].local_topic,
+					context->bridge->topics[i].qos, 0);
 		}
 	}
+
+	/* prepare backoff for a possible failure. Restart timeout will be reset if connection gets established */
+	bridge__backoff_step(context);
 
 	if(context->bridge->notifications){
 		if(context->bridge->notification_topic){
 			if(!context->bridge->initial_notification_done){
 				notification_payload = '0';
-				db__messages_easy_queue(db, context, context->bridge->notification_topic, 1, 1, &notification_payload, 1);
+				db__messages_easy_queue(db, context, context->bridge->notification_topic, 1, 1, &notification_payload, 1, 0, NULL);
 				context->bridge->initial_notification_done = true;
 			}
 			notification_payload = '0';
-			rc = will__set(context, context->bridge->notification_topic, 1, &notification_payload, 1, true);
+			rc = will__set(context, context->bridge->notification_topic, 1, &notification_payload, 1, true, NULL);
 			if(rc != MOSQ_ERR_SUCCESS){
 				return rc;
 			}
@@ -169,12 +189,12 @@ int bridge__connect_step1(struct mosquitto_db *db, struct mosquitto *context)
 
 			if(!context->bridge->initial_notification_done){
 				notification_payload = '0';
-				db__messages_easy_queue(db, context, notification_topic, 1, 1, &notification_payload, 1);
+				db__messages_easy_queue(db, context, notification_topic, 1, 1, &notification_payload, 1, 0, NULL);
 				context->bridge->initial_notification_done = true;
 			}
 
 			notification_payload = '0';
-			rc = will__set(context, notification_topic, 1, &notification_payload, 1, true);
+			rc = will__set(context, notification_topic, 1, &notification_payload, 1, true, NULL);
 			mosquitto__free(notification_topic);
 			if(rc != MOSQ_ERR_SUCCESS){
 				return rc;
@@ -225,7 +245,7 @@ int bridge__connect_step2(struct mosquitto_db *db, struct mosquitto *context)
 	HASH_ADD(hh_sock, db->contexts_by_sock, sock, sizeof(context->sock), context);
 
 	if(rc == MOSQ_ERR_CONN_PENDING){
-		context->state = mosq_cs_connect_pending;
+		context__set_state(context, mosq_cs_connect_pending);
 	}
 	return rc;
 }
@@ -253,10 +273,12 @@ int bridge__connect_step3(struct mosquitto_db *db, struct mosquitto *context)
 		context->bridge->primary_retry = mosquitto_time() + 5;
 	}
 
-	rc = send__connect(context, context->keepalive, context->clean_session);
+	rc = send__connect(context, context->keepalive, context->clean_start, NULL);
 	if(rc == MOSQ_ERR_SUCCESS){
+		bridge__backoff_reset(context);
 		return MOSQ_ERR_SUCCESS;
 	}else if(rc == MOSQ_ERR_ERRNO && errno == ENOTCONN){
+		bridge__backoff_reset(context);
 		return MOSQ_ERR_SUCCESS;
 	}else{
 		if(rc == MOSQ_ERR_TLS){
@@ -282,23 +304,23 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 	if(!context || !context->bridge) return MOSQ_ERR_INVAL;
 
-	context->state = mosq_cs_new;
+	context__set_state(context, mosq_cs_new);
 	context->sock = INVALID_SOCKET;
 	context->last_msg_in = mosquitto_time();
 	context->next_msg_out = mosquitto_time() + context->bridge->keepalive;
 	context->keepalive = context->bridge->keepalive;
-	context->clean_session = context->bridge->clean_session;
+	context->clean_start = context->bridge->clean_start;
 	context->in_packet.payload = NULL;
 	context->ping_t = 0;
 	context->bridge->lazy_reconnect = false;
 	bridge__packet_cleanup(context);
 	db__message_reconnect_reset(db, context);
 
-	if(context->clean_session){
+	if(context->clean_start){
 		db__messages_delete(db, context);
 	}
 
-	/* Delete all local subscriptions even for clean_session==false. We don't
+	/* Delete all local subscriptions even for clean_start==false. We don't
 	 * remove any messages and the next loop carries out the resubscription
 	 * anyway. This means any unwanted subs will be removed.
 	 */
@@ -307,21 +329,33 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 	for(i=0; i<context->bridge->topic_count; i++){
 		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
 			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
-			if(sub__add(db, context, context->bridge->topics[i].local_topic, context->bridge->topics[i].qos, &db->subs)) return 1;
+			if(sub__add(db,
+						context,
+						context->bridge->topics[i].local_topic,
+						context->bridge->topics[i].qos,
+						0,
+						MQTT_SUB_OPT_NO_LOCAL | MQTT_SUB_OPT_RETAIN_AS_PUBLISHED,
+						&db->subs) > 0){
+
+				return 1;
+			}
 		}
 	}
+
+	/* prepare backoff for a possible failure. Restart timeout will be reset if connection gets established */
+	bridge__backoff_step(context);
 
 	if(context->bridge->notifications){
 		if(context->bridge->notification_topic){
 			if(!context->bridge->initial_notification_done){
 				notification_payload = '0';
-				db__messages_easy_queue(db, context, context->bridge->notification_topic, 1, 1, &notification_payload, 1);
+				db__messages_easy_queue(db, context, context->bridge->notification_topic, 1, 1, &notification_payload, 1, 0, NULL);
 				context->bridge->initial_notification_done = true;
 			}
 
 			if (!context->bridge->notifications_local_only) {
 				notification_payload = '0';
-				rc = will__set(context, context->bridge->notification_topic, 1, &notification_payload, 1, true);
+				rc = will__set(context, context->bridge->notification_topic, 1, &notification_payload, 1, true, NULL);
 				if(rc != MOSQ_ERR_SUCCESS){
 					return rc;
 				}
@@ -335,13 +369,13 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 			if(!context->bridge->initial_notification_done){
 				notification_payload = '0';
-				db__messages_easy_queue(db, context, notification_topic, 1, 1, &notification_payload, 1);
+				db__messages_easy_queue(db, context, notification_topic, 1, 1, &notification_payload, 1, 0, NULL);
 				context->bridge->initial_notification_done = true;
 			}
 
 			if (!context->bridge->notifications_local_only) {
 				notification_payload = '0';
-				rc = will__set(context, notification_topic, 1, &notification_payload, 1, true);
+				rc = will__set(context, notification_topic, 1, &notification_payload, 1, true, NULL);
 				mosquitto__free(notification_topic);
 				if(rc != MOSQ_ERR_SUCCESS){
 					return rc;
@@ -364,15 +398,17 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 		return rc;
 	}else if(rc == MOSQ_ERR_CONN_PENDING){
-		context->state = mosq_cs_connect_pending;
+		context__set_state(context, mosq_cs_connect_pending);
 	}
 
 	HASH_ADD(hh_sock, db->contexts_by_sock, sock, sizeof(context->sock), context);
 
-	rc2 = send__connect(context, context->keepalive, context->clean_session);
+	rc2 = send__connect(context, context->keepalive, context->clean_start, NULL);
 	if(rc2 == MOSQ_ERR_SUCCESS){
+		bridge__backoff_reset(context);
 		return rc;
 	}else if(rc2 == MOSQ_ERR_ERRNO && errno == ENOTCONN){
+		bridge__backoff_reset(context);
 		return MOSQ_ERR_SUCCESS;
 	}else{
 		if(rc2 == MOSQ_ERR_TLS){
@@ -409,6 +445,45 @@ void bridge__packet_cleanup(struct mosquitto *context)
 	context->out_packet_last = NULL;
 
 	packet__cleanup(&(context->in_packet));
+}
+
+static int rand_between(int base, int cap)
+{
+	int r;
+	util__random_bytes(&r, sizeof(int));
+	return (r % (cap - base)) + base;
+}
+
+static void bridge__backoff_step(struct mosquitto *context)
+{
+	struct mosquitto__bridge *bridge;
+	if(!context || !context->bridge) return;
+
+	bridge = context->bridge;
+
+	/* skip if not using backoff */
+	if(bridge->backoff_cap){
+		/* “Decorrelated Jitter” calculation, according to:
+		 * https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+		 */
+		bridge->restart_timeout = rand_between(bridge->backoff_base, bridge->restart_timeout * 3);
+		if(bridge->restart_timeout > bridge->backoff_cap){
+			bridge->restart_timeout = bridge->backoff_cap;
+		}
+	}
+}
+
+static void bridge__backoff_reset(struct mosquitto *context)
+{
+	struct mosquitto__bridge *bridge;
+	if(!context || !context->bridge) return;
+
+	bridge = context->bridge;
+
+	/* skip if not using backoff */
+	if(bridge->backoff_cap){
+		bridge->restart_timeout = bridge->backoff_base;
+	}
 }
 
 #endif

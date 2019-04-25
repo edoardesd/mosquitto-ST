@@ -3,6 +3,7 @@ option(WITH_PIC "Build the static library with PIC (Position Independent Code) e
 add_subdirectory(cpp)
 
 include_directories(${mosquitto_SOURCE_DIR} ${mosquitto_SOURCE_DIR}/lib
+			${mosquitto_SOURCE_DIR}/src/deps
 			${STDBOOL_H_PATH} ${STDINT_H_PATH}
 			${OPENSSL_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIR})
 link_directories(${mosquitto_SOURCE_DIR}/lib)
@@ -11,7 +12,9 @@ set(C_SRC
 	actions.c
 	callbacks.c
 	connect.c
+	handle_auth.c
 	handle_connack.c
+	handle_disconnect.c
 	handle_ping.c
 	handle_pubackcomp.c
 	handle_publish.c
@@ -26,10 +29,12 @@ set(C_SRC
 	messages_mosq.c messages_mosq.h
 	mosquitto.c mosquitto.h
 	mosquitto_internal.h
-	mqtt3_protocol.h
-	net_mosq.c net_mosq.h
+	mqtt_protocol.h
+	net_mosq_ocsp.c net_mosq.c net_mosq.h
 	options.c
+	packet_datatypes.c
 	packet_mosq.c packet_mosq.h
+	property_mosq.c property_mosq.h
 	read_handle.c read_handle.h
 	send_connect.c
 	send_disconnect.c
@@ -44,7 +49,7 @@ set(C_SRC
 	time_mosq.c
 	tls_mosq.c
 	utf8_mosq.c
-	util_mosq.c util_mosq.h
+	util_mosq.c util_topic.c util_mosq.h
 	will_mosq.c will_mosq.h)
 
 set (LIBRARIES ${OPENSSL_LIBRARIES} ${PTHREAD_LIBRARIES})

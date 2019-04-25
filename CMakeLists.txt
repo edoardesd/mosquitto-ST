@@ -11,7 +11,7 @@ project(mosquitto)
 cmake_minimum_required(VERSION 2.8)
 # Only for version 3 and up. cmake_policy(SET CMP0042 NEW)
 
-set (VERSION 1.5.8)
+set (VERSION 1.6.0)
 
 add_definitions (-DCMAKE -DVERSION=\"${VERSION}\")
 
@@ -98,6 +98,15 @@ else (WITH_THREADING)
 endif (WITH_THREADING)
 
 option(DOCUMENTATION "Build documentation?" ON)
+
+option(WITH_DLT "Include DLT support?" OFF)
+message(STATUS "WITH_DLT = ${WITH_DLT}")
+if (WITH_DLT)
+	#find_package(DLT REQUIRED)
+	find_package(PkgConfig)
+	pkg_check_modules(DLT "automotive-dlt >= 2.11")
+	add_definitions("-DWITH_DLT")
+endif (WITH_DLT)
 
 # ========================================
 # Include projects

@@ -11,7 +11,7 @@
 
 	<refnamediv>
 		<refname>mosquitto_sub</refname>
-		<refpurpose>an MQTT version 3.1.1/3.1 client for subscribing to topics</refpurpose>
+		<refpurpose>an MQTT version 5/3.1.1/3.1 client for subscribing to topics</refpurpose>
 	</refnamediv>
 
 	<refsynopsisdiv>
@@ -20,7 +20,7 @@
 			<group choice='req'>
 				<arg choice='plain'>
 					<arg><option>-h</option> <replaceable>hostname</replaceable></arg>
-					<arg><option>-p</option> <replaceable>port number</replaceable></arg>
+					<arg><option>-p</option> <replaceable>port-number</replaceable></arg>
 					<arg>
 						<arg><option>-u</option> <replaceable>username</replaceable></arg>
 						<arg><option>-P</option> <replaceable>password</replaceable></arg>
@@ -32,25 +32,29 @@
 					<arg choice='opt' rep='repeat'><option>-t</option> <replaceable>message-topic</replaceable></arg>
 				</arg>
 			</group>
-			<arg><option>-A</option> <replaceable>bind_address</replaceable></arg>
+			<arg><option>-A</option> <replaceable>bind-address</replaceable></arg>
 			<arg><option>-c</option></arg>
-			<arg><option>-C</option> <replaceable>msg count</replaceable></arg>
+			<arg><option>-C</option> <replaceable>msg-count</replaceable></arg>
 			<arg><option>-d</option></arg>
-			<arg><option>-i</option> <replaceable>client_id</replaceable></arg>
-			<arg><option>-I</option> <replaceable>client id prefix</replaceable></arg>
-			<arg><option>-k</option> <replaceable>keepalive time</replaceable></arg>
+			<arg><option>-D</option> <replaceable>command</replaceable> <replaceable>identifier</replaceable> <replaceable>value</replaceable></arg>
+			<arg><option>-E</option></arg>
+			<arg><option>-i</option> <replaceable>client-id</replaceable></arg>
+			<arg><option>-I</option> <replaceable>client-id-prefix</replaceable></arg>
+			<arg><option>-k</option> <replaceable>keepalive-time</replaceable></arg>
 			<arg><option>-N</option></arg>
-			<arg><option>-q</option> <replaceable>message QoS</replaceable></arg>
+			<arg><option>-q</option> <replaceable>message-QoS</replaceable></arg>
+			<arg><option>--remove-retained</option></arg>
 			<group choice='opt'>
 				<arg choice='plain'><option>-R</option></arg>
 				<arg choice='plain'><option>--retained-only</option></arg>
 			</group>
+			<arg><option>--retain-as-published</option></arg>
 			<arg><option>-S</option></arg>
 			<arg choice='opt' rep='repeat'><option>-T</option> <replaceable>filter-out</replaceable></arg>
 			<arg choice='opt' rep='repeat'><option>-U</option> <replaceable>unsub-topic</replaceable></arg>
 			<arg><option>-v</option></arg>
 			<arg><option>-V</option> <replaceable>protocol-version</replaceable></arg>
-			<arg><option>-W</option> <replaceable>message processing timeout</replaceable></arg>
+			<arg><option>-W</option> <replaceable>message-processing-timeout</replaceable></arg>
 			<arg><option>--proxy</option> <replaceable>socks-url</replaceable></arg>
 			<arg><option>--quiet</option></arg>
 			<arg>
@@ -68,6 +72,14 @@
 					<arg><option>--cert</option> <replaceable>file</replaceable></arg>
 					<arg><option>--key</option> <replaceable>file</replaceable></arg>
 					<arg><option>--tls-version</option> <replaceable>version</replaceable></arg>
+					<arg><option>--tls-alpn</option> <replaceable>protocol</replaceable></arg>
+					<arg><option>--tls-engine</option> <replaceable>engine</replaceable></arg>
+					<arg><option>--keyform</option>
+					<group choice='req'>
+						<arg choice='plain'><replaceable>pem</replaceable></arg>
+						<arg choice='plain'><replaceable>engine</replaceable></arg>
+					</group></arg>
+					<arg><option>--tls-engine-kpass-sha1</option> <replaceable>kpass-sha1</replaceable></arg>
 					<arg><option>--insecure</option></arg>
 				</arg>
 				<arg>
@@ -87,7 +99,7 @@
 
 	<refsect1>
 		<title>Description</title>
-		<para><command>mosquitto_sub</command> is a simple MQTT version 3.1.1
+		<para><command>mosquitto_sub</command> is a simple MQTT version 5/3.1.1
 			client that will subscribe to topics and print the messages that
 			it receives.</para>
 		<para>In addition to subscribing to topics,
@@ -210,6 +222,52 @@
 				</listitem>
 			</varlistentry>
 			<varlistentry>
+				<term><option>-D</option></term>
+				<term><option>--property</option></term>
+				<listitem>
+					<para>Use an MQTT v5 property with this publish. If you use
+						this option, the client will be set to be an MQTT v5
+						client. This option has two forms:</para>
+					<para><option>-D command identifier value</option></para>
+					<para><option>-D command identifier name value</option></para>
+					<para><option>command</option> is the MQTT command/packet
+						identifier and can be one of CONNECT, PUBACK, PUBREC,
+						PUBCOMP, SUBSCRIBE, UNSUBSCRIBE, DISCONNECT, AUTH, or
+						WILL. The properties available for each command are
+						listed in the Properties section.</para>
+
+					<para><option>identifier</option> is the name of the
+						property to add. This is as described in the
+						specification, but with '-' as a word separator. For
+						example:
+						<option>payload-format-indicator</option>. More details
+						are in the <link linkend='properties'>Properties</link>
+						section.</para>
+
+					<para><option>value</option> is the value of the property
+						to add, with a data type that is property
+						specific.</para>
+
+					<para><option>name</option> is only used for the
+						<option>user-property</option> property as the first of
+						the two strings in the string pair. In that case,
+						<option>value</option> is the second of the strings in
+						the pair.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
+				<term><option>-E</option></term>
+				<listitem>
+					<para>If this option is given,
+						<command>mosquitto_sub</command> will exit immediately
+						that all of its subscriptions have been acknowledged by
+						the broker. In conjunction with <option>-c</option>
+						this allows a durable client session to be initialised
+						on the broker for future use without requiring any
+						messages to be received.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
 				<term><option>-F</option></term>
 				<listitem>
 					<para>Specify output printing format. This option allows
@@ -287,6 +345,18 @@
 						private key for this client, if required by the
 						server.</para>
 					<para>See also <option>--cert</option>.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
+				<term><option>--keyform</option></term>
+				<listitem>
+					<para>Specifies the type of private key in use when making
+						TLS connections.. This can be "pem" or "engine". This
+						parameter is useful when a TPM module is being used and
+						the private key has been created with it. Defaults to
+						"pem", which means normal private key files are
+						used.</para>
+					<para>See also <option>--tls-engine</option>.</para>
 				</listitem>
 			</varlistentry>
 			<varlistentry>
@@ -404,6 +474,36 @@
 				</listitem>
 			</varlistentry>
 			<varlistentry>
+				<term><option>--remove-retained</option></term>
+				<listitem>
+					<para>If this argument is given, the when mosquitto_sub
+						receives a message with the retained bit set, it will
+						send a message to the broker to clear that retained
+						message. This applies to all received messages except
+						those that are filtered out by the <option>-T</option>
+						option. This option still takes effect even if
+						<option>-R</option> is used.  See also the
+						<option>--retain-as-published</option> and
+						<option>--retained-only</option> options.</para>
+
+						<example title="remove-retained-example-1" label="1">
+						<para>Remove all retained messages on the server,
+							assuming we have access to do so, and then exit:</para>
+
+						<programlisting language="config">
+mosquitto_sub -t '#' --remove-retained --retained-only</programlisting>
+						</example>
+
+						<example title="remove-retained-example-2" label="2">
+						<para>Remove a whole tree, with the exception of a
+							single topic:</para>
+
+						<programlisting language="config">
+mosquitto_sub -t 'bbc/#' -T bbc/bbc1 --remove-retained</programlisting>
+						</example>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
 				<term><option>--retained-only</option></term>
 				<listitem>
 					<para>If this argument is given, only messages that are
@@ -411,7 +511,20 @@
 						Messages with retain set are "stale", in that it is not
 						known when they were originally published. With this
 						argument in use, the receipt of the first non-stale
-						message will cause the client to exit.</para>
+						message will cause the client to exit. See also the
+						<option>--retain-as-published</option> option.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
+				<term><option>--retain-as-published</option></term>
+				<listitem>
+					<para>If this argument is given, the subscriptions will
+						have the "retain as published" option set. This means
+						that the retain flag on an incoming message will be
+						exactly as set by the publishing client, rather than
+						indicating whether the message is fresh/stale.</para>
+					<para>This option is not valid for MQTT v3.1/v3.1.1
+						clients.</para>
 				</listitem>
 			</varlistentry>
 			<varlistentry>
@@ -454,16 +567,42 @@
 				</listitem>
 			</varlistentry>
 			<varlistentry>
+				<term><option>--tls-alpn</option></term>
+				<listitem>
+					<para>Provide a protocol to use when connecting to a broker
+						that has multiple protocols available on a single port,
+						e.g. MQTT and WebSockets.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
+				<term><option>--tls-engine</option></term>
+				<listitem>
+					<para>A valid openssl engine id. These can be listed with
+						openssl engine command.</para>
+					<para>See also <option>--keyform</option>.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
+				<term><option>--tls-engine-kpass-sha1</option></term>
+				<listitem>
+					<para>SHA1 of the private key password when using an TLS
+						engine.  Some TLS engines such as the TPM engine may
+						require the use of a password in order to be accessed.
+						This option allows a hex encoded SHA1 hash of the
+						password to the engine directly, instead of the user
+						being prompted for the password.</para>
+					<para>See also <option>--tls-engine</option>.</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
 				<term><option>--tls-version</option></term>
 				<listitem>
 					<para>Choose which TLS protocol version to use when
 						communicating with the broker. Valid options are
-						<option>tlsv1.2</option>, <option>tlsv1.1</option> and
-						<option>tlsv1</option>. The default value is
-						<option>tlsv1.2</option>. If the installed version of
-						openssl is too old, only <option>tlsv1</option> will be
-						available. Must match the protocol version used by the
-						broker.</para>
+						<option>tlsv1.3</option>, <option>tlsv1.2</option> and
+						<option>tlsv1.1</option>. The default value is
+						<option>tlsv1.2</option>. Must match the protocol
+						version used by the broker.</para>
 				</listitem>
 			</varlistentry>
 			<varlistentry>
@@ -524,9 +663,12 @@
 				<term><option>--protocol-version</option></term>
 				<listitem>
 					<para>Specify which version of the MQTT protocol should be
-						used when connecting to the rmeote broker. Can be
-						<option>mqttv311</option> or <option>mqttv31</option>.
-						Defaults to <option>mqttv311</option>.</para>
+						used when connecting to the remote broker. Can be
+						<option>5</option>, <option>311</option>,
+						<option>31</option>, or the more verbose
+						<option>mqttv5</option>, <option>mqttv311</option>, or
+						<option>mqttv31</option>.
+						Defaults to <option>311</option>.</para>
 				</listitem>
 			</varlistentry>
 			<varlistentry>
@@ -689,6 +831,64 @@
 		modify the other will parameters.</para>
 	</refsect1>
 
+	<refsect1 id='properties'>
+		<title>Properties</title>
+		<para>The <option>-D</option> / <option>--property</option> option
+			allows adding properties to different stages of the mosquitto_sub
+			run. The properties supported for each command are as
+			follows:</para>
+
+		<refsect2>
+			<title>Connect</title>
+			<itemizedlist>
+				<listitem><para><option>authentication-data</option> (binary data - note treated as a string in mosquitto_sub)</para></listitem>
+				<listitem><para><option>authentication-method</option> (UTF-8 string pair)</para></listitem>
+				<listitem><para><option>maximum-packet-size</option> (32-bit unsigned integer)</para></listitem>
+				<listitem><para><option>receive-maximum</option> (16-bit unsigned integer)</para></listitem>
+				<listitem><para><option>request-problem-information</option> (8-bit unsigned integer)</para></listitem>
+				<listitem><para><option>request-response-information</option> (8-bit unsigned integer)</para></listitem>
+				<listitem><para><option>session-expiry-interval</option> (32-bit unsigned integer)</para></listitem>
+				<listitem><para><option>topic-alias-maximum</option> (16-bit unsigned integer)</para></listitem>
+				<listitem><para><option>user-property</option> (UTF-8 string pair)</para></listitem>
+			</itemizedlist>
+		</refsect2>
+
+		<refsect2>
+			<title>Subscribe</title>
+			<itemizedlist>
+				<listitem><para><option>user-property</option> (UTF-8 string pair)</para></listitem>
+			</itemizedlist>
+		</refsect2>
+
+		<refsect2>
+			<title>Unsubscribe</title>
+			<itemizedlist>
+				<listitem><para><option>user-property</option> (UTF-8 string pair)</para></listitem>
+			</itemizedlist>
+		</refsect2>
+
+		<refsect2>
+			<title>Disconnect</title>
+			<itemizedlist>
+				<listitem><para><option>session-expiry-interval</option> (32-bit unsigned integer)</para></listitem>
+				<listitem><para><option>user-property</option> (UTF-8 string pair)</para></listitem>
+			</itemizedlist>
+		</refsect2>
+
+		<refsect2>
+			<title>Will properties</title>
+			<itemizedlist>
+				<listitem><para><option>content-type</option> (UTF-8 string)</para></listitem>
+				<listitem><para><option>correlation-data</option> (binary data - note treated as a string in mosquitto_sub)</para></listitem>
+				<listitem><para><option>message-expiry-interval</option> (32-bit unsigned integer)</para></listitem>
+				<listitem><para><option>payload-format-indicator</option> (8-bit unsigned integer)</para></listitem>
+				<listitem><para><option>response-topic</option> (UTF-8 string)</para></listitem>
+				<listitem><para><option>user-property</option> (UTF-8 string pair)</para></listitem>
+				<listitem><para><option>will-delay-interval</option> (32-bit unsigned integer)</para></listitem>
+			</itemizedlist>
+		</refsect2>
+	</refsect1>
+
 	<refsect1>
 		<title>Examples</title>
 		<para>Note that these really are examples - the subscriptions will work
@@ -757,6 +957,12 @@
 			<member>
 				<citerefentry>
 					<refentrytitle><link xlink:href="mosquitto_pub-1.html">mosquitto_pub</link></refentrytitle>
+					<manvolnum>1</manvolnum>
+				</citerefentry>
+			</member>
+			<member>
+				<citerefentry>
+					<refentrytitle><link xlink:href="mosquitto_rr-1.html">mosquitto_rr</link></refentrytitle>
 					<manvolnum>1</manvolnum>
 				</citerefentry>
 			</member>

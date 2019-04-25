@@ -21,9 +21,11 @@ Contributors:
 #include <string.h>
 
 #include "mosquitto_broker_internal.h"
-#include "mqtt3_protocol.h"
+#include "alias_mosq.h"
+#include "mqtt_protocol.h"
 #include "memory_mosq.h"
 #include "packet_mosq.h"
+#include "property_mosq.h"
 #include "read_handle.h"
 #include "send_mosq.h"
 #include "sys_tree.h"
@@ -38,18 +40,30 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	uint8_t dup, qos, retain;
 	uint16_t mid = 0;
 	int rc = 0;
+	int rc2;
 	uint8_t header = context->in_packet.command;
 	int res = 0;
 	struct mosquitto_msg_store *stored = NULL;
 	int len;
 	int slen;
 	char *topic_mount;
+	mosquitto_property *properties = NULL;
+	mosquitto_property *p, *p_prev;
+	mosquitto_property *msg_properties = NULL, *msg_properties_last;
+	uint32_t message_expiry_interval = 0;
+	int topic_alias = -1;
+	uint8_t reason_code = 0;
+
 #ifdef WITH_BRIDGE
 	char *topic_temp;
 	int i;
 	struct mosquitto__bridge_topic *cur_topic;
 	bool match;
 #endif
+
+	if(context->state != mosq_cs_connected){
+		return MOSQ_ERR_PROTOCOL;
+	}
 
 	payload.ptr = NULL;
 
@@ -60,15 +74,116 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 				"Invalid QoS in PUBLISH from %s, disconnecting.", context->id);
 		return 1;
 	}
+	if(qos > context->maximum_qos){
+		log__printf(NULL, MOSQ_LOG_INFO,
+				"Too high QoS in PUBLISH from %s, disconnecting.", context->id);
+		return 1;
+	}
 	retain = (header & 0x01);
 
+	if(retain && db->config->retain_available == false){
+		if(context->protocol == mosq_p_mqtt5){
+			send__disconnect(context, MQTT_RC_RETAIN_NOT_SUPPORTED, NULL);
+		}
+		return 1;
+	}
+
 	if(packet__read_string(&context->in_packet, &topic, &slen)) return 1;
-	if(!slen){
+	if(!slen && context->protocol != mosq_p_mqtt5){
 		/* Invalid publish topic, disconnect client. */
 		mosquitto__free(topic);
 		return 1;
 	}
 
+	if(qos > 0){
+		if(packet__read_uint16(&context->in_packet, &mid)){
+			mosquitto__free(topic);
+			return 1;
+		}
+		if(mid == 0){
+			mosquitto__free(topic);
+			return MOSQ_ERR_PROTOCOL;
+		}
+	}
+
+	/* Handle properties */
+	if(context->protocol == mosq_p_mqtt5){
+		rc = property__read_all(CMD_PUBLISH, &context->in_packet, &properties);
+		if(rc) return rc;
+
+		p = properties;
+		p_prev = NULL;
+		msg_properties = NULL;
+		msg_properties_last = NULL;
+		while(p){
+			switch(p->identifier){
+				case MQTT_PROP_CONTENT_TYPE:
+				case MQTT_PROP_CORRELATION_DATA:
+				case MQTT_PROP_PAYLOAD_FORMAT_INDICATOR:
+				case MQTT_PROP_RESPONSE_TOPIC:
+				case MQTT_PROP_USER_PROPERTY:
+					if(msg_properties){
+						msg_properties_last->next = p;
+						msg_properties_last = p;
+					}else{
+						msg_properties = p;
+						msg_properties_last = p;
+					}
+					if(p_prev){
+						p_prev->next = p->next;
+						p = p_prev->next;
+					}else{
+						properties = p->next;
+						p = properties;
+					}
+					msg_properties_last->next = NULL;
+					break;
+
+				case MQTT_PROP_TOPIC_ALIAS:
+					topic_alias = p->value.i16;
+					p_prev = p;
+					p = p->next;
+					break;
+
+				case MQTT_PROP_MESSAGE_EXPIRY_INTERVAL:
+					message_expiry_interval = p->value.i32;
+					p_prev = p;
+					p = p->next;
+					break;
+
+				case MQTT_PROP_SUBSCRIPTION_IDENTIFIER:
+					p_prev = p;
+					p = p->next;
+					break;
+
+				default:
+					p = p->next;
+					break;
+			}
+		}
+	}
+	mosquitto_property_free_all(&properties);
+
+	if(topic_alias == 0 || (context->listener && topic_alias > context->listener->max_topic_alias)){
+		mosquitto__free(topic);
+		send__disconnect(context, MQTT_RC_TOPIC_ALIAS_INVALID, NULL);
+		return MOSQ_ERR_PROTOCOL;
+	}else if(topic_alias > 0){
+		if(topic){
+			rc = alias__add(context, topic, topic_alias);
+			if(rc){
+				mosquitto__free(topic);
+				return rc;
+			}
+		}else{
+			rc = alias__find(context, &topic, topic_alias);
+			if(rc){
+				send__disconnect(context, MQTT_RC_TOPIC_ALIAS_INVALID, NULL);
+				mosquitto__free(topic);
+				return rc;
+			}
+		}
+	}
 	if(mosquitto_validate_utf8(topic, slen) != MOSQ_ERR_SUCCESS){
 		log__printf(NULL, MOSQ_LOG_INFO, "Client %s sent topic with invalid UTF-8, disconnecting.", context->id);
 		mosquitto__free(topic);
@@ -129,13 +244,6 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 		return 1;
 	}
 
-	if(qos > 0){
-		if(packet__read_uint16(&context->in_packet, &mid)){
-			mosquitto__free(topic);
-			return 1;
-		}
-	}
-
 	payloadlen = context->in_packet.remaining_length - context->in_packet.pos;
 	G_PUB_BYTES_RECEIVED_INC(payloadlen);
 	if(context->listener && context->listener->mount_point){
@@ -143,6 +251,7 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 		topic_mount = mosquitto__malloc(len+1);
 		if(!topic_mount){
 			mosquitto__free(topic);
+			mosquitto_property_free_all(&msg_properties);
 			return MOSQ_ERR_NOMEM;
 		}
 		snprintf(topic_mount, len, "%s%s", context->listener->mount_point, topic);
@@ -155,15 +264,19 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	if(payloadlen){
 		if(db->config->message_size_limit && payloadlen > db->config->message_size_limit){
 			log__printf(NULL, MOSQ_LOG_DEBUG, "Dropped too large PUBLISH from %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", context->id, dup, qos, retain, mid, topic, (long)payloadlen);
+			reason_code = MQTT_RC_IMPLEMENTATION_SPECIFIC;
 			goto process_bad_message;
 		}
-		if(UHPA_ALLOC(payload, payloadlen+1) == 0){
+		if(UHPA_ALLOC(payload, payloadlen) == 0){
 			mosquitto__free(topic);
+			mosquitto_property_free_all(&msg_properties);
 			return MOSQ_ERR_NOMEM;
 		}
+
 		if(packet__read_bytes(&context->in_packet, UHPA_ACCESS(payload, payloadlen), payloadlen)){
 			mosquitto__free(topic);
 			UHPA_FREE(payload, payloadlen);
+			mosquitto_property_free_all(&msg_properties);
 			return 1;
 		}
 	}
@@ -172,10 +285,12 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	rc = mosquitto_acl_check(db, context, topic, payloadlen, UHPA_ACCESS(payload, payloadlen), qos, retain, MOSQ_ACL_WRITE);
 	if(rc == MOSQ_ERR_ACL_DENIED){
 		log__printf(NULL, MOSQ_LOG_DEBUG, "Denied PUBLISH from %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", context->id, dup, qos, retain, mid, topic, (long)payloadlen);
+			reason_code = MQTT_RC_NOT_AUTHORIZED;
 		goto process_bad_message;
 	}else if(rc != MOSQ_ERR_SUCCESS){
 		mosquitto__free(topic);
 		UHPA_FREE(payload, payloadlen);
+		mosquitto_property_free_all(&msg_properties);
 		return rc;
 	}
 
@@ -185,33 +300,46 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 	if(!stored){
 		dup = 0;
-		if(db__message_store(db, context, mid, topic, qos, payloadlen, &payload, retain, &stored, 0)){
+		if(db__message_store(db, context, mid, topic, qos, payloadlen, &payload, retain, &stored, message_expiry_interval, msg_properties, 0)){
+			mosquitto_property_free_all(&msg_properties);
 			return 1;
 		}
+		msg_properties = NULL; /* Now belongs to db__message_store() */
 	}else{
 		mosquitto__free(topic);
 		topic = stored->topic;
 		dup = 1;
+		mosquitto_property_free_all(&msg_properties);
+		UHPA_FREE(payload, payloadlen);
 	}
 
 	switch(qos){
 		case 0:
-			if(sub__messages_queue(db, context->id, topic, qos, retain, &stored)) rc = 1;
+			rc2 = sub__messages_queue(db, context->id, topic, qos, retain, &stored);
+			if(rc2 > 0) rc = 1;
 			break;
 		case 1:
-			if(sub__messages_queue(db, context->id, topic, qos, retain, &stored)) rc = 1;
-			if(send__puback(context, mid)) rc = 1;
+			util__decrement_receive_quota(context);
+			rc2 = sub__messages_queue(db, context->id, topic, qos, retain, &stored);
+			if(rc2 == MOSQ_ERR_SUCCESS || context->protocol != mosq_p_mqtt5){
+				if(send__puback(context, mid, 0)) rc = 1;
+			}else if(rc2 == MOSQ_ERR_NO_SUBSCRIBERS){
+				if(send__puback(context, mid, MQTT_RC_NO_MATCHING_SUBSCRIBERS)) rc = 1;
+			}else{
+				rc = rc2;
+			}
 			break;
 		case 2:
-			if(!dup){
-				res = db__message_insert(db, context, mid, mosq_md_in, qos, retain, stored);
+			if(dup == 0){
+				util__decrement_receive_quota(context);
+				res = db__message_insert(db, context, mid, mosq_md_in, qos, retain, stored, NULL);
 			}else{
 				res = 0;
 			}
 			/* db__message_insert() returns 2 to indicate dropped message
 			 * due to queue. This isn't an error so don't disconnect them. */
 			if(!res){
-				if(send__pubrec(context, mid)) rc = 1;
+				if(send__pubrec(context, mid, 0)) rc = 1;
 			}else if(res == 1){
 				rc = 1;
 			}
@@ -226,21 +354,13 @@ process_bad_message:
 		case 0:
 			return MOSQ_ERR_SUCCESS;
 		case 1:
-			return send__puback(context, mid);
+			return send__puback(context, mid, reason_code);
 		case 2:
-			db__message_store_find(context, mid, &stored);
-			if(!stored){
-				if(db__message_store(db, context, mid, NULL, qos, 0, NULL, false, &stored, 0)){
-					return 1;
-				}
-				res = db__message_insert(db, context, mid, mosq_md_in, qos, false, stored);
+			if(context->protocol == mosq_p_mqtt5){
+				return send__pubrec(context, mid, reason_code);
 			}else{
-				res = 0;
+				return send__pubrec(context, mid, 0);
 			}
-			if(!res){
-				res = send__pubrec(context, mid);
-			}
-			return res;
 	}
 	return 1;
 }

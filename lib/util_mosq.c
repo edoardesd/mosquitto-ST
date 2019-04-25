@@ -28,8 +28,15 @@ Contributors:
 #  include <sys/stat.h>
 #endif
 
+#if !defined(WITH_TLS) && defined(__linux__)
+#  if defined(__GLIBC__) && __GLIBC_PREREQ(2, 25)
+#    include <sys/random.h>
+#  endif
+#endif
+
 #ifdef WITH_TLS
 #  include <openssl/bn.h>
+#  include <openssl/rand.h>
 #endif
 
 #ifdef WITH_BROKER
@@ -105,6 +112,11 @@ int mosquitto__check_keepalive(struct mosquitto *mosq)
 				mosq->on_disconnect(mosq, mosq->userdata, rc);
 				mosq->in_callback = false;
 			}
+			if(mosq->on_disconnect_v5){
+				mosq->in_callback = true;
+				mosq->on_disconnect_v5(mosq, mosq->userdata, rc, NULL);
+				mosq->in_callback = false;
+			}
 			pthread_mutex_unlock(&mosq->callback_mutex);
 
 			return rc;
@@ -135,239 +147,29 @@ uint16_t mosquitto__mid_generate(struct mosquitto *mosq)
 	return mid;
 }
 
-/* Check that a topic used for publishing is valid.
- * Search for + or # in a topic. Return MOSQ_ERR_INVAL if found.
- * Also returns MOSQ_ERR_INVAL if the topic string is too long.
- * Returns MOSQ_ERR_SUCCESS if everything is fine.
- */
-int mosquitto_pub_topic_check(const char *str)
+
+#ifdef WITH_TLS
+int mosquitto__hex2bin_sha1(const char *hex, unsigned char **bin)
 {
-	int len = 0;
-	while(str && str[0]){
-		if(str[0] == '+' || str[0] == '#'){
-			return MOSQ_ERR_INVAL;
-		}
-		len++;
-		str = &str[1];
-	}
-	if(len > 65535) return MOSQ_ERR_INVAL;
+	unsigned char *sha, tmp[SHA_DIGEST_LENGTH];
 
-	return MOSQ_ERR_SUCCESS;
-}
-
-int mosquitto_pub_topic_check2(const char *str, size_t len)
-{
-	int i;
-
-	if(len > 65535) return MOSQ_ERR_INVAL;
-
-	for(i=0; i<len; i++){
-		if(str[i] == '+' || str[i] == '#'){
-			return MOSQ_ERR_INVAL;
-		}
-	}
-
-	return MOSQ_ERR_SUCCESS;
-}
-
-/* Check that a topic used for subscriptions is valid.
- * Search for + or # in a topic, check they aren't in invalid positions such as
- * foo/#/bar, foo/+bar or foo/bar#.
- * Return MOSQ_ERR_INVAL if invalid position found.
- * Also returns MOSQ_ERR_INVAL if the topic string is too long.
- * Returns MOSQ_ERR_SUCCESS if everything is fine.
- */
-int mosquitto_sub_topic_check(const char *str)
-{
-	char c = '\0';
-	int len = 0;
-	while(str && str[0]){
-		if(str[0] == '+'){
-			if((c != '\0' && c != '/') || (str[1] != '\0' && str[1] != '/')){
-				return MOSQ_ERR_INVAL;
-			}
-		}else if(str[0] == '#'){
-			if((c != '\0' && c != '/')  || str[1] != '\0'){
-				return MOSQ_ERR_INVAL;
-			}
-		}
-		len++;
-		c = str[0];
-		str = &str[1];
-	}
-	if(len > 65535) return MOSQ_ERR_INVAL;
-
-	return MOSQ_ERR_SUCCESS;
-}
-
-int mosquitto_sub_topic_check2(const char *str, size_t len)
-{
-	char c = '\0';
-	int i;
-
-	if(len > 65535) return MOSQ_ERR_INVAL;
-
-	for(i=0; i<len; i++){
-		if(str[i] == '+'){
-			if((c != '\0' && c != '/') || (i<len-1 && str[i+1] != '/')){
-				return MOSQ_ERR_INVAL;
-			}
-		}else if(str[i] == '#'){
-			if((c != '\0' && c != '/')  || i<len-1){
-				return MOSQ_ERR_INVAL;
-			}
-		}
-		c = str[i];
-	}
-
-	return MOSQ_ERR_SUCCESS;
-}
-
-int mosquitto_topic_matches_sub(const char *sub, const char *topic, bool *result)
-{
-	int slen, tlen;
-
-	if(!result) return MOSQ_ERR_INVAL;
-	*result = false;
-
-	if(!sub || !topic){
+	if(mosquitto__hex2bin(hex, tmp, SHA_DIGEST_LENGTH) != SHA_DIGEST_LENGTH){
 		return MOSQ_ERR_INVAL;
 	}
 
-	slen = strlen(sub);
-	tlen = strlen(topic);
-
-	return mosquitto_topic_matches_sub2(sub, slen, topic, tlen, result);
-}
-
-/* Does a topic match a subscription? */
-int mosquitto_topic_matches_sub2(const char *sub, size_t sublen, const char *topic, size_t topiclen, bool *result)
-{
-	int spos, tpos;
-	bool multilevel_wildcard = false;
-	int i;
-
-	if(!result) return MOSQ_ERR_INVAL;
-	*result = false;
-
-	if(!sub || !topic){
-		return MOSQ_ERR_INVAL;
-	}
-
-	if(!sublen || !topiclen){
-		*result = false;
-		return MOSQ_ERR_INVAL;
-	}
-
-	if(sublen && topiclen){
-		if((sub[0] == '$' && topic[0] != '$')
-				|| (topic[0] == '$' && sub[0] != '$')){
-
-			return MOSQ_ERR_SUCCESS;
-		}
-	}
-
-	spos = 0;
-	tpos = 0;
-
-	while(spos < sublen && tpos <= topiclen){
-		if(topic[tpos] == '+' || topic[tpos] == '#'){
-			return MOSQ_ERR_INVAL;
-		}
-		if(tpos == topiclen || sub[spos] != topic[tpos]){ /* Check for wildcard matches */
-			if(sub[spos] == '+'){
-				/* Check for bad "+foo" or "a/+foo" subscription */
-				if(spos > 0 && sub[spos-1] != '/'){
-					return MOSQ_ERR_INVAL;
-				}
-				/* Check for bad "foo+" or "foo+/a" subscription */
-				if(spos < sublen-1 && sub[spos+1] != '/'){
-					return MOSQ_ERR_INVAL;
-				}
-				spos++;
-				while(tpos < topiclen && topic[tpos] != '/'){
-					tpos++;
-				}
-				if(tpos == topiclen && spos == sublen){
-					*result = true;
-					return MOSQ_ERR_SUCCESS;
-				}
-			}else if(sub[spos] == '#'){
-				if(spos > 0 && sub[spos-1] != '/'){
-					return MOSQ_ERR_INVAL;
-				}
-				multilevel_wildcard = true;
-				if(spos+1 != sublen){
-					return MOSQ_ERR_INVAL;
-				}else{
-					*result = true;
-					return MOSQ_ERR_SUCCESS;
-				}
-			}else{
-				/* Check for e.g. foo/bar matching foo/+/# */
-				if(spos > 0
-						&& spos+2 == sublen
-						&& tpos == topiclen
-						&& sub[spos-1] == '+'
-						&& sub[spos] == '/'
-						&& sub[spos+1] == '#')
-				{
-					*result = true;
-					multilevel_wildcard = true;
-					return MOSQ_ERR_SUCCESS;
-				}
-
-				for(i=spos; i<sublen; i++){
-					if(sub[i] == '#' && i+1 != sublen){
-						return MOSQ_ERR_INVAL;
-					}
-				}
-
-				/* Valid input, but no match */
-				return MOSQ_ERR_SUCCESS;
-			}
-		}else{
-			/* sub[spos] == topic[tpos] */
-			if(tpos == topiclen-1){
-				/* Check for e.g. foo matching foo/# */
-				if(spos == sublen-3
-						&& sub[spos+1] == '/'
-						&& sub[spos+2] == '#'){
-					*result = true;
-					multilevel_wildcard = true;
-					return MOSQ_ERR_SUCCESS;
-				}
-			}
-			spos++;
-			tpos++;
-			if(spos == sublen && tpos == topiclen){
-				*result = true;
-				return MOSQ_ERR_SUCCESS;
-			}else if(tpos == topiclen && spos == sublen-1 && sub[spos] == '+'){
-				if(spos > 0 && sub[spos-1] != '/'){
-					return MOSQ_ERR_INVAL;
-				}
-				spos++;
-				*result = true;
-				return MOSQ_ERR_SUCCESS;
-			}
-		}
-	}
-	if(multilevel_wildcard == false && (tpos < topiclen || spos < sublen)){
-		*result = false;
-	}
-
+	sha = mosquitto__malloc(SHA_DIGEST_LENGTH);
+	memcpy(sha, tmp, SHA_DIGEST_LENGTH);
+	*bin = sha;
 	return MOSQ_ERR_SUCCESS;
 }
 
-#ifdef FINAL_WITH_TLS_PSK
 int mosquitto__hex2bin(const char *hex, unsigned char *bin, int bin_max_len)
 {
 	BIGNUM *bn = NULL;
 	int len;
 	int leading_zero = 0;
 	int start = 0;
-	int i = 0;
+	size_t i = 0;
 
 	/* Count the number of leading zero */
 	for(i=0; i<strlen(hex); i=i+2) {
@@ -483,4 +285,69 @@ FILE *mosquitto__fopen(const char *path, const char *mode, bool restrict_read)
 		return fopen(path, mode);
 	}
 #endif
+}
+
+void util__increment_receive_quota(struct mosquitto *mosq)
+{
+	if(mosq->msgs_in.inflight_quota < mosq->msgs_in.inflight_maximum){
+		mosq->msgs_in.inflight_quota++;
+	}
+}
+
+void util__increment_send_quota(struct mosquitto *mosq)
+{
+	if(mosq->msgs_out.inflight_quota < mosq->msgs_out.inflight_maximum){
+		mosq->msgs_out.inflight_quota++;
+	}
+}
+
+
+void util__decrement_receive_quota(struct mosquitto *mosq)
+{
+	if(mosq->msgs_in.inflight_quota > 0){
+		mosq->msgs_in.inflight_quota--;
+	}
+}
+
+void util__decrement_send_quota(struct mosquitto *mosq)
+{
+	if(mosq->msgs_out.inflight_quota > 0){
+		mosq->msgs_out.inflight_quota--;
+	}
+}
+
+
+int util__random_bytes(void *bytes, int count)
+{
+	int rc = MOSQ_ERR_UNKNOWN;
+
+#ifdef WITH_TLS
+	if(RAND_bytes(bytes, count) == 1){
+		rc = MOSQ_ERR_SUCCESS;
+	}
+#elif defined(__GLIBC__) && __GLIBC_PREREQ(2, 25)
+	if(getrandom(bytes, count, 0) == 0){
+		rc = MOSQ_ERR_SUCCESS;
+	}
+#elif defined(WIN32)
+	HRYPTPROV provider;
+
+	if(!CryptAcquireContext(&provider, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)){
+		return MOSQ_ERR_UNKNOWN;
+	}
+
+	if(CryptGenRandom(provider, count, bytes)){
+		rc = MOSQ_ERR_SUCCESS;
+	}
+
+	CryptReleaseContext(provider, 0);
+#else
+	int i;
+
+	for(i=0; i<count; i++){
+		((uint8_t *)bytes)[i] = (uint8_t )(random()&0xFF);
+	}
+	rc = MOSQ_ERR_SUCCESS;
+#endif
+	return rc;
 }

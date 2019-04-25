@@ -1,16 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Test whether a username with invalid UTF-8 fails.
 
-import time
-import inspect, os, sys
-# From http://stackoverflow.com/questions/279237/python-import-a-module-from-a-folder
-cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile( inspect.currentframe() ))[0],"..")))
-if cmd_subfolder not in sys.path:
-    sys.path.insert(0, cmd_subfolder)
-
-import struct
-import mosq_test
+from mosq_test_helper import *
 
 rc = 1
 keepalive = 60
@@ -25,7 +17,7 @@ broker = mosq_test.start_broker(filename=os.path.basename(__file__), port=port)
 try:
     time.sleep(0.5)
 
-    sock = mosq_test.do_client_connect(connect_packet, "", port=port)
+    sock = mosq_test.do_client_connect(connect_packet, b"", port=port)
     # Exception occurs if connack packet returned
     rc = 0
     sock.close()
@@ -34,7 +26,7 @@ finally:
     broker.wait()
     (stdo, stde) = broker.communicate()
     if rc:
-        print(stde)
+        print(stde.decode('utf-8'))
 
 exit(rc)
 

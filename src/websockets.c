@@ -34,15 +34,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <libwebsockets.h>
 #include "mosquitto_internal.h"
 #include "mosquitto_broker_internal.h"
-#include "mqtt3_protocol.h"
+#include "mqtt_protocol.h"
 #include "memory_mosq.h"
 #include "packet_mosq.h"
 #include "sys_tree.h"
 
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
+
+#ifndef WIN32
+#  include <sys/socket.h>
+#endif
 
 extern struct mosquitto_db int_db;
 
@@ -233,6 +236,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 				if(db->config->connection_messages == true){
 					log__printf(NULL, MOSQ_LOG_NOTICE, "Client connection from %s denied: max_connections exceeded.", mosq->address);
 				}
+				mosquitto__free(mosq->address);
 				mosquitto__free(mosq);
 				u->mosq = NULL;
 				return -1;
@@ -256,7 +260,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 #ifdef WITH_TLS
 				mosq->ssl = NULL;
 #endif
-				do_disconnect(db, mosq);
+				do_disconnect(db, mosq, MOSQ_ERR_CONN_LOST);
 			}
 			break;
 
@@ -313,7 +317,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 
 #ifdef WITH_SYS_TREE
 				g_msgs_sent++;
-				if(((packet->command)&0xF6) == PUBLISH){
+				if(((packet->command)&0xF6) == CMD_PUBLISH){
 					g_pub_msgs_sent++;
 				}
 #endif
@@ -353,7 +357,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 					mosq->in_packet.command = buf[pos];
 					pos++;
 					/* Clients must send CONNECT as their first command. */
-					if(mosq->state == mosq_cs_new && (mosq->in_packet.command&0xF0) != CONNECT){
+					if(mosq->state == mosq_cs_new && (mosq->in_packet.command&0xF0) != CMD_CONNECT){
 						return -1;
 					}
 				}
@@ -404,7 +408,7 @@ static int callback_mqtt(struct libwebsocket_context *context,
 
 #ifdef WITH_SYS_TREE
 				G_MSGS_RECEIVED_INC(1);
-				if(((mosq->in_packet.command)&0xF5) == PUBLISH){
+				if(((mosq->in_packet.command)&0xF5) == CMD_PUBLISH){
 					G_PUB_MSGS_RECEIVED_INC(1);
 				}
 #endif
@@ -417,11 +421,11 @@ static int callback_mqtt(struct libwebsocket_context *context,
 
 				if(rc && (mosq->out_packet || mosq->current_out_packet)) {
 					if(mosq->state != mosq_cs_disconnecting){
-						mosq->state = mosq_cs_disconnect_ws;
+						context__set_state(mosq, mosq_cs_disconnect_ws);
 					}
 					libwebsocket_callback_on_writable(mosq->ws_context, mosq->wsi);
 				} else if (rc) {
-					do_disconnect(db, mosq);
+					do_disconnect(db, mosq, MOSQ_ERR_CONN_LOST);
 					return -1;
 				}
 			}
@@ -690,7 +694,7 @@ static void log_wrap(int level, const char *line)
 	log__printf(NULL, MOSQ_LOG_WEBSOCKETS, "%s", l);
 }
 
-struct libwebsocket_context *mosq_websockets_init(struct mosquitto__listener *listener, int log_level)
+struct libwebsocket_context *mosq_websockets_init(struct mosquitto__listener *listener, const struct mosquitto__config *conf)
 {
 	struct lws_context_creation_info info;
 	struct libwebsocket_protocols *p;
@@ -735,6 +739,9 @@ struct libwebsocket_context *mosq_websockets_init(struct mosquitto__listener *li
 	if(listener->socket_domain == AF_INET){
 		info.options |= LWS_SERVER_OPTION_DISABLE_IPV6;
 	}
+#if defined(LWS_LIBRARY_VERSION_NUMBER) && LWS_LIBRARY_VERSION_NUMBER>=1007000
+    info.max_http_header_data = conf->websockets_headers_size;
+#endif
 
 	user = mosquitto__calloc(1, sizeof(struct libws_mqtt_hack));
 	if(!user){
@@ -760,7 +767,7 @@ struct libwebsocket_context *mosq_websockets_init(struct mosquitto__listener *li
 	info.user = user;
 	listener->ws_protocol = p;
 
-	lws_set_log_level(log_level, log_wrap);
+	lws_set_log_level(conf->websockets_log_level, log_wrap);
 
 	log__printf(NULL, MOSQ_LOG_INFO, "Opening websockets listen socket on port %d.", listener->port);
 	return libwebsocket_create_context(&info);

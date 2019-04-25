@@ -390,7 +390,7 @@ int socks5__read(struct mosquitto *mosq)
 				mosq->in_packet.to_process += 16+2-1; /* 16 bytes IPv6, 2 bytes port, -1 byte because we've already read the first byte */
 				mosq->in_packet.packet_length += 16+2-1;
 			}else if(mosq->in_packet.payload[3] == SOCKS_ATYPE_DOMAINNAME){
-				if(mosq->in_packet.payload[4] > 0 && mosq->in_packet.payload[4] <= 255){
+				if(mosq->in_packet.payload[4] > 0){
 					mosq->in_packet.to_process += mosq->in_packet.payload[4];
 					mosq->in_packet.packet_length += mosq->in_packet.payload[4];
 				}
@@ -428,7 +428,7 @@ int socks5__read(struct mosquitto *mosq)
 				int rc = net__socket_connect_step3(mosq, mosq->host);
 				if(rc) return rc;
 			}
-			return send__connect(mosq, mosq->keepalive, mosq->clean_session);
+			return send__connect(mosq, mosq->keepalive, mosq->clean_start, NULL);
 		}else{
 			i = mosq->in_packet.payload[1];
 			packet__cleanup(&mosq->in_packet);

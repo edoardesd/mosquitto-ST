@@ -64,10 +64,6 @@ WITH_SYSTEMD:=no
 # Build with SRV lookup support.
 WITH_SRV:=no
 
-# Build using libuuid for clientid generation (Linux only - please report if
-# supported on your platform).
-WITH_UUID:=yes
-
 # Build with websockets support on the broker.
 WITH_WEBSOCKETS:=no
 
@@ -98,6 +94,9 @@ WITH_EPOLL:=yes
 # Build with bundled uthash.h
 WITH_BUNDLED_DEPS:=yes
 
+# Build with coverage options
+WITH_COVERAGE:=no
+
 # =============================================================================
 # End of user configuration
 # =============================================================================
@@ -105,7 +104,7 @@ WITH_BUNDLED_DEPS:=yes
 
 # Also bump lib/mosquitto.h, CMakeLists.txt,
 # installer/mosquitto.nsi, installer/mosquitto64.nsi
-VERSION=1.5.8
+VERSION=1.6.0
 
 # Client library SO version. Bump if incompatible API/ABI changes are made.
 SOVERSION=1
@@ -130,11 +129,12 @@ else
 endif
 
 STATIC_LIB_DEPS:=
-LIB_CFLAGS:=${CFLAGS} ${CPPFLAGS} -I. -I.. -I../lib
+LIB_CFLAGS:=${CFLAGS} ${CPPFLAGS} -I. -I.. -I../lib -I../src/deps
 LIB_CXXFLAGS:=$(CFLAGS) ${CPPFLAGS} -I. -I.. -I../lib
 LIB_LDFLAGS:=${LDFLAGS}
 
 BROKER_CFLAGS:=${LIB_CFLAGS} ${CPPFLAGS} -DVERSION="\"${VERSION}\"" -DWITH_BROKER
+BROKER_LDFLAGS:=${LDFLAGS}
 CLIENT_CFLAGS:=${CFLAGS} ${CPPFLAGS} -I.. -I../lib -DVERSION="\"${VERSION}\""
 
 ifneq ($(or $(findstring $(UNAME),FreeBSD), $(findstring $(UNAME),OpenBSD), $(findstring $(UNAME),NetBSD)),)
@@ -212,13 +212,6 @@ endif
 ifeq ($(WITH_SOCKS),yes)
 	LIB_CFLAGS:=$(LIB_CFLAGS) -DWITH_SOCKS
 	CLIENT_CFLAGS:=$(CLIENT_CFLAGS) -DWITH_SOCKS
-endif
-
-ifeq ($(WITH_UUID),yes)
-	ifeq ($(UNAME),Linux)
-		BROKER_CFLAGS:=$(BROKER_CFLAGS) -DWITH_UUID
-		BROKER_LIBS:=$(BROKER_LIBS) -luuid
-	endif
 endif
 
 ifeq ($(WITH_BRIDGE),yes)
@@ -304,4 +297,13 @@ endif
 
 ifeq ($(WITH_BUNDLED_DEPS),yes)
 	BROKER_CFLAGS:=$(BROKER_CFLAGS) -Ideps
+endif
+
+ifeq ($(WITH_COVERAGE),yes)
+	BROKER_CFLAGS:=$(BROKER_CFLAGS) -coverage
+	BROKER_LDFLAGS:=$(BROKER_LDFLAGS) -coverage
+	LIB_CFLAGS:=$(LIB_CFLAGS) -coverage
+	LIB_LDFLAGS:=$(LIB_LDFLAGS) -coverage
+	CLIENT_CFLAGS:=$(CLIENT_CFLAGS) -coverage
+	CLIENT_LDFLAGS:=$(CLIENT_LDFLAGS) -coverage
 endif

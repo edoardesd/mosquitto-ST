@@ -20,8 +20,10 @@ Contributors:
 #include <time.h>
 
 #include "mosquitto_broker_internal.h"
+#include "alias_mosq.h"
 #include "memory_mosq.h"
 #include "packet_mosq.h"
+#include "property_mosq.h"
 #include "time_mosq.h"
 
 #include "uthash.h"
@@ -35,13 +37,12 @@ struct mosquitto *context__init(struct mosquitto_db *db, mosq_sock_t sock)
 	if(!context) return NULL;
 	
 	context->pollfd_index = -1;
-	context->state = mosq_cs_new;
+	context__set_state(context, mosq_cs_new);
 	context->sock = sock;
 	context->last_msg_in = mosquitto_time();
 	context->next_msg_out = mosquitto_time() + 60;
 	context->keepalive = 60; /* Default to 60s */
-	context->clean_session = true;
-	context->disconnect_t = 0;
+	context->clean_start = true;
 	context->id = NULL;
 	context->last_mid = 0;
 	context->will = NULL;
@@ -49,6 +50,7 @@ struct mosquitto *context__init(struct mosquitto_db *db, mosq_sock_t sock)
 	context->password = NULL;
 	context->listener = NULL;
 	context->acl_list = NULL;
+
 	/* is_bridge records whether this client is a bridge or not. This could be
 	 * done by looking at context->bridge for bridges that we create ourself,
 	 * but incoming bridges need some other way of being recorded. */
@@ -71,14 +73,11 @@ struct mosquitto *context__init(struct mosquitto_db *db, mosq_sock_t sock)
 		}
 	}
 	context->bridge = NULL;
-	context->inflight_msgs = NULL;
-	context->last_inflight_msg = NULL;
-	context->queued_msgs = NULL;
-	context->last_queued_msg = NULL;
-	context->msg_bytes = 0;
-	context->msg_bytes12 = 0;
-	context->msg_count = 0;
-	context->msg_count12 = 0;
+	context->msgs_in.inflight_maximum = db->config->max_inflight_messages;
+	context->msgs_out.inflight_maximum = db->config->max_inflight_messages;
+	context->msgs_in.inflight_quota = db->config->max_inflight_messages;
+	context->msgs_out.inflight_quota = db->config->max_inflight_messages;
+	context->maximum_qos = 2;
 #ifdef WITH_TLS
 	context->ssl = NULL;
 #endif
@@ -98,7 +97,6 @@ struct mosquitto *context__init(struct mosquitto_db *db, mosq_sock_t sock)
 void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool do_free)
 {
 	struct mosquitto__packet *packet;
-	struct mosquitto_client_msg *msg, *next;
 #ifdef WITH_BRIDGE
 	int i;
 #endif
@@ -138,6 +136,11 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 	}
 #endif
 
+	alias__free_all(context);
+
+	mosquitto__free(context->auth_method);
+	context->auth_method = NULL;
+
 	mosquitto__free(context->username);
 	context->username = NULL;
 
@@ -145,7 +148,7 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 	context->password = NULL;
 
 	net__socket_close(db, context);
-	if((do_free || context->clean_session) && db){
+	if(do_free || context->clean_start){
 		sub__clean_session(db, context);
 		db__messages_delete(db, context);
 	}
@@ -156,9 +159,6 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 	context__send_will(db, context);
 
 	if(context->id){
-		assert(db); /* db can only be NULL here if the client hasn't sent a
-					   CONNECT and hence wouldn't have an id. */
-
 		context__remove_from_by_id(db, context);
 		mosquitto__free(context->id);
 		context->id = NULL;
@@ -175,25 +175,8 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 		context->out_packet = context->out_packet->next;
 		mosquitto__free(packet);
 	}
-	if(do_free || context->clean_session){
-		msg = context->inflight_msgs;
-		while(msg){
-			next = msg->next;
-			db__msg_store_deref(db, &msg->store);
-			mosquitto__free(msg);
-			msg = next;
-		}
-		context->inflight_msgs = NULL;
-		context->last_inflight_msg = NULL;
-		msg = context->queued_msgs;
-		while(msg){
-			next = msg->next;
-			db__msg_store_deref(db, &msg->store);
-			mosquitto__free(msg);
-			msg = next;
-		}
-		context->queued_msgs = NULL;
-		context->last_queued_msg = NULL;
+	if(do_free || context->clean_start){
+		db__messages_delete(db, context);
 	}
 #if defined(WITH_BROKER) && defined(__GLIBC__) && defined(WITH_ADNS)
 	if(context->adns){
@@ -211,31 +194,75 @@ void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool d
 void context__send_will(struct mosquitto_db *db, struct mosquitto *ctxt)
 {
 	if(ctxt->state != mosq_cs_disconnecting && ctxt->will){
-		if(mosquitto_acl_check(db, ctxt, ctxt->will->topic, ctxt->will->payloadlen, ctxt->will->payload,
-							   ctxt->will->qos, ctxt->will->retain, MOSQ_ACL_WRITE) == MOSQ_ERR_SUCCESS){
+		if(ctxt->will_delay_interval > 0){
+			will_delay__add(ctxt);
+			return;
+		}
+
+		if(mosquitto_acl_check(db, ctxt,
+					ctxt->will->msg.topic,
+					ctxt->will->msg.payloadlen,
+					ctxt->will->msg.payload,
+					ctxt->will->msg.qos,
+					ctxt->will->msg.retain,
+					MOSQ_ACL_WRITE) == MOSQ_ERR_SUCCESS){
+
 			/* Unexpected disconnect, queue the client will. */
-			db__messages_easy_queue(db, ctxt, ctxt->will->topic, ctxt->will->qos, ctxt->will->payloadlen, ctxt->will->payload, ctxt->will->retain);
+			db__messages_easy_queue(db, ctxt,
+					ctxt->will->msg.topic,
+					ctxt->will->msg.qos,
+					ctxt->will->msg.payloadlen,
+					ctxt->will->msg.payload,
+					ctxt->will->msg.retain,
+					ctxt->will->expiry_interval,
+					&ctxt->will->properties);
 		}
 	}
 	if(ctxt->will){
-		mosquitto__free(ctxt->will->topic);
-		mosquitto__free(ctxt->will->payload);
+		mosquitto_property_free_all(&ctxt->will->properties);
+		mosquitto__free(ctxt->will->msg.topic);
+		mosquitto__free(ctxt->will->msg.payload);
 		mosquitto__free(ctxt->will);
 		ctxt->will = NULL;
 	}
 }
 
 
-void context__disconnect(struct mosquitto_db *db, struct mosquitto *ctxt)
+void context__disconnect(struct mosquitto_db *db, struct mosquitto *context)
 {
-	context__send_will(db, ctxt);
+	net__socket_close(db, context);
 
-	ctxt->disconnect_t = time(NULL);
-	net__socket_close(db, ctxt);
+	if(context->session_expiry_interval == 0){
+		context__send_will(db, context);
+
+#ifdef WITH_BRIDGE
+		if(!context->bridge)
+#endif
+		{
+
+			if(context->will_delay_interval == 0){
+				/* This will be done later, after the will is published for delay>0. */
+				context__add_to_disused(db, context);
+			}
+		}
+	}else{
+		session_expiry__add(db, context);
+	}
+	context__set_state(context, mosq_cs_disconnected);
 }
 
 void context__add_to_disused(struct mosquitto_db *db, struct mosquitto *context)
 {
+	if(context->state == mosq_cs_disused) return;
+
+	context__set_state(context, mosq_cs_disused);
+
+	if(context->id){
+		context__remove_from_by_id(db, context);
+		mosquitto__free(context->id);
+		context->id = NULL;
+	}
+
 	if(db->ll_for_free){
 		context->for_free_next = db->ll_for_free;
 		db->ll_for_free = context;
@@ -247,13 +274,32 @@ void context__add_to_disused(struct mosquitto_db *db, struct mosquitto *context)
 void context__free_disused(struct mosquitto_db *db)
 {
 	struct mosquitto *context, *next;
+#ifdef WITH_WEBSOCKETS
+	struct mosquitto *last = NULL;
+#endif
 	assert(db);
 
 	context = db->ll_for_free;
 	while(context){
-		next = context->for_free_next;
-		context__cleanup(db, context, true);
-		context = next;
+#ifdef WITH_WEBSOCKETS
+		if(context->wsi){
+			/* Don't delete yet, lws hasn't finished with it */
+			if(last){
+				last->for_free_next = context;
+			}else{
+				db->ll_for_free = context;
+			}
+			next = context->for_free_next;
+			context->for_free_next = NULL;
+			last = context;
+			context = next;
+		}else
+#endif
+		{
+			next = context->for_free_next;
+			context__cleanup(db, context, true);
+			context = next;
+		}
 	}
 	db->ll_for_free = NULL;
 }
@@ -264,5 +310,13 @@ void context__remove_from_by_id(struct mosquitto_db *db, struct mosquitto *conte
 	if(context->removed_from_by_id == false && context->id){
 		HASH_DELETE(hh_id, db->contexts_by_id, context);
 		context->removed_from_by_id = true;
+	}
+}
+
+
+void context__set_state(struct mosquitto *context, enum mosquitto_client_state state)
+{
+	if(context->state != mosq_cs_disused){
+		context->state = state;
 	}
 }

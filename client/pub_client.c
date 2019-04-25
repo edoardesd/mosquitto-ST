@@ -22,6 +22,7 @@ Contributors:
 #include <stdlib.h>
 #include <string.h>
 #ifndef WIN32
+#include <sys/time.h>
 #include <time.h>
 #else
 #include <process.h>
@@ -29,52 +30,119 @@ Contributors:
 #define snprintf sprintf_s
 #endif
 
+#include <mqtt_protocol.h>
 #include <mosquitto.h>
 #include "client_shared.h"
-
-#define STATUS_CONNECTING 0
-#define STATUS_CONNACK_RECVD 1
-#define STATUS_WAITING 2
-#define STATUS_DISCONNECTING 3
+#include "pub_shared.h"
 
 /* Global variables for use in callbacks. See sub_client.c for an example of
  * using a struct to hold variables for use in callbacks. */
-static char *topic = NULL;
-static char *message = NULL;
-static long msglen = 0;
-static int qos = 0;
-static int retain = 0;
-static int mode = MSGMODE_NONE;
-static int status = STATUS_CONNECTING;
-static int mid_sent = 0;
+static bool first_publish = true;
 static int last_mid = -1;
 static int last_mid_sent = -1;
+static char *line_buf = NULL;
+static int line_buf_len = 1024;
 static bool connected = true;
-static char *username = NULL;
-static char *password = NULL;
 static bool disconnect_sent = false;
-static bool quiet = false;
+static int publish_count = 0;
+static bool ready_for_repeat = false;
 
-void my_connect_callback(struct mosquitto *mosq, void *obj, int result)
+#ifdef WIN32
+static uint64_t next_publish_tv;
+
+static void set_repeat_time(void)
+{
+	uint64_t ticks = GetTickCount64();
+	next_publish_tv = ticks + cfg.repeat_delay.tv_sec*1000 + cfg.repeat_delay.tv_usec/1000;
+}
+
+static int check_repeat_time(void)
+{
+	uint64_t ticks = GetTickCount64();
+
+	if(ticks > next_publish_tv){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+#else
+
+static struct timeval next_publish_tv;
+
+static void set_repeat_time(void)
+{
+	gettimeofday(&next_publish_tv, NULL);
+	next_publish_tv.tv_sec += cfg.repeat_delay.tv_sec;
+	next_publish_tv.tv_usec += cfg.repeat_delay.tv_usec;
+
+	next_publish_tv.tv_sec += next_publish_tv.tv_usec/1e6;
+	next_publish_tv.tv_usec = next_publish_tv.tv_usec%1000000;
+}
+
+static int check_repeat_time(void)
+{
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+
+	if(tv.tv_sec > next_publish_tv.tv_sec){
+		return 1;
+	}else if(tv.tv_sec == next_publish_tv.tv_sec
+			&& tv.tv_usec > next_publish_tv.tv_usec){
+
+		return 1;
+	}
+	return 0;
+}
+#endif
+
+void my_disconnect_callback(struct mosquitto *mosq, void *obj, int rc, const mosquitto_property *properties)
+{
+	UNUSED(mosq);
+	UNUSED(obj);
+	UNUSED(rc);
+	UNUSED(properties);
+
+	connected = false;
+}
+
+int my_publish(struct mosquitto *mosq, int *mid, const char *topic, int payloadlen, void *payload, int qos, bool retain)
+{
+	ready_for_repeat = false;
+	if(cfg.protocol_version == MQTT_PROTOCOL_V5 && cfg.have_topic_alias && first_publish == false){
+		return mosquitto_publish_v5(mosq, mid, NULL, payloadlen, payload, qos, retain, cfg.publish_props);
+	}else{
+		first_publish = false;
+		return mosquitto_publish_v5(mosq, mid, topic, payloadlen, payload, qos, retain, cfg.publish_props);
+	}
+}
+
+
+void my_connect_callback(struct mosquitto *mosq, void *obj, int result, int flags, const mosquitto_property *properties)
 {
 	int rc = MOSQ_ERR_SUCCESS;
 
+	UNUSED(obj);
+	UNUSED(flags);
+	UNUSED(properties);
+
 	if(!result){
-		switch(mode){
+		switch(cfg.pub_mode){
 			case MSGMODE_CMD:
 			case MSGMODE_FILE:
 			case MSGMODE_STDIN_FILE:
-				rc = mosquitto_publish(mosq, &mid_sent, topic, msglen, message, qos, retain);
+				rc = my_publish(mosq, &mid_sent, cfg.topic, cfg.msglen, cfg.message, cfg.qos, cfg.retain);
 				break;
 			case MSGMODE_NULL:
-				rc = mosquitto_publish(mosq, &mid_sent, topic, 0, NULL, qos, retain);
+				rc = my_publish(mosq, &mid_sent, cfg.topic, 0, NULL, cfg.qos, cfg.retain);
 				break;
 			case MSGMODE_STDIN_LINE:
 				status = STATUS_CONNACK_RECVD;
 				break;
 		}
 		if(rc){
-			if(!quiet){
+			if(!cfg.quiet){
 				switch(rc){
 					case MOSQ_ERR_INVAL:
 						fprintf(stderr, "Error: Invalid input. Does your topic contain '+' or '#'?\n");
@@ -91,114 +159,170 @@ void my_connect_callback(struct mosquitto *mosq, void *obj, int result)
 					case MOSQ_ERR_PAYLOAD_SIZE:
 						fprintf(stderr, "Error: Message payload is too large.\n");
 						break;
+					case MOSQ_ERR_QOS_NOT_SUPPORTED:
+						fprintf(stderr, "Error: Message QoS not supported on broker, try a lower QoS.\n");
+						break;
 				}
 			}
-			mosquitto_disconnect(mosq);
+			mosquitto_disconnect_v5(mosq, 0, cfg.disconnect_props);
 		}
 	}else{
-		if(result && !quiet){
-			fprintf(stderr, "%s\n", mosquitto_connack_string(result));
+		if(result && !cfg.quiet){
+			if(cfg.protocol_version == MQTT_PROTOCOL_V5){
+				fprintf(stderr, "%s\n", mosquitto_reason_string(result));
+			}else{
+				fprintf(stderr, "%s\n", mosquitto_connack_string(result));
+			}
 		}
 	}
 }
 
-void my_disconnect_callback(struct mosquitto *mosq, void *obj, int rc)
-{
-	connected = false;
-}
 
-void my_publish_callback(struct mosquitto *mosq, void *obj, int mid)
+void my_publish_callback(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *properties)
 {
+	UNUSED(obj);
+	UNUSED(properties);
+
 	last_mid_sent = mid;
-	if(mode == MSGMODE_STDIN_LINE){
+	if(reason_code > 127){
+		if(!cfg.quiet) fprintf(stderr, "Warning: Publish %d failed: %s.\n", mid, mosquitto_reason_string(reason_code));
+	}
+	publish_count++;
+
+	if(cfg.pub_mode == MSGMODE_STDIN_LINE){
 		if(mid == last_mid){
-			mosquitto_disconnect(mosq);
+			mosquitto_disconnect_v5(mosq, 0, cfg.disconnect_props);
 			disconnect_sent = true;
 		}
+	}else if(publish_count < cfg.repeat_count){
+		ready_for_repeat = true;
+		set_repeat_time();
 	}else if(disconnect_sent == false){
-		mosquitto_disconnect(mosq);
+		mosquitto_disconnect_v5(mosq, 0, cfg.disconnect_props);
 		disconnect_sent = true;
 	}
 }
 
-void my_log_callback(struct mosquitto *mosq, void *obj, int level, const char *str)
+
+int pub_shared_init(void)
 {
-	printf("%s\n", str);
+	line_buf = malloc(line_buf_len);
+	if(!line_buf){
+		fprintf(stderr, "Error: Out of memory.\n");
+		return 1;
+	}
+	return 0;
 }
 
-int load_stdin(void)
+
+int pub_shared_loop(struct mosquitto *mosq)
 {
-	long pos = 0, rlen;
-	char buf[1024];
-	char *aux_message = NULL;
+	int read_len;
+	int pos;
+	int rc, rc2;
+	char *buf2;
+	int buf_len_actual;
+	int mode;
+	int loop_delay = 1000;
 
-	mode = MSGMODE_STDIN_FILE;
+	if(cfg.repeat_count > 1 && (cfg.repeat_delay.tv_sec == 0 || cfg.repeat_delay.tv_usec != 0)){
+		loop_delay = cfg.repeat_delay.tv_usec / 2000;
+	}
 
-	while(!feof(stdin)){
-		rlen = fread(buf, 1, 1024, stdin);
-		aux_message = realloc(message, pos+rlen);
-		if(!aux_message){
-			if(!quiet) fprintf(stderr, "Error: Out of memory.\n");
-			free(message);
-			return 1;
-		} else
-		{
-			message = aux_message;
+	mode = cfg.pub_mode;
+
+	if(mode == MSGMODE_STDIN_LINE){
+		mosquitto_loop_start(mosq);
+	}
+
+	do{
+		if(mode == MSGMODE_STDIN_LINE){
+			if(status == STATUS_CONNACK_RECVD){
+				pos = 0;
+				read_len = line_buf_len;
+				while(connected && fgets(&line_buf[pos], read_len, stdin)){
+					buf_len_actual = strlen(line_buf);
+					if(line_buf[buf_len_actual-1] == '\n'){
+						line_buf[buf_len_actual-1] = '\0';
+						rc2 = my_publish(mosq, &mid_sent, cfg.topic, buf_len_actual-1, line_buf, cfg.qos, cfg.retain);
+						if(rc2){
+							if(!cfg.quiet) fprintf(stderr, "Error: Publish returned %d, disconnecting.\n", rc2);
+							mosquitto_disconnect_v5(mosq, MQTT_RC_DISCONNECT_WITH_WILL_MSG, cfg.disconnect_props);
+						}
+						break;
+					}else{
+						line_buf_len += 1024;
+						pos += 1023;
+						read_len = 1024;
+						buf2 = realloc(line_buf, line_buf_len);
+						if(!buf2){
+							fprintf(stderr, "Error: Out of memory.\n");
+							return MOSQ_ERR_NOMEM;
+						}
+						line_buf = buf2;
+					}
+				}
+				if(feof(stdin)){
+					if(mid_sent == -1){
+						/* Empty file */
+						mosquitto_disconnect_v5(mosq, 0, cfg.disconnect_props);
+						disconnect_sent = true;
+						status = STATUS_DISCONNECTING;
+					}else{
+						last_mid = mid_sent;
+						status = STATUS_WAITING;
+					}
+				}
+			}else if(status == STATUS_WAITING){
+				if(last_mid_sent == last_mid && disconnect_sent == false){
+					mosquitto_disconnect_v5(mosq, 0, cfg.disconnect_props);
+					disconnect_sent = true;
+				}
+#ifdef WIN32
+				Sleep(100);
+#else
+				struct timespec ts;
+				ts.tv_sec = 0;
+				ts.tv_nsec = 100000000;
+				nanosleep(&ts, NULL);
+#endif
+			}
+			rc = MOSQ_ERR_SUCCESS;
+		}else{
+			rc = mosquitto_loop(mosq, loop_delay, 1);
+			if(ready_for_repeat && check_repeat_time()){
+				rc = 0;
+				switch(cfg.pub_mode){
+					case MSGMODE_CMD:
+					case MSGMODE_FILE:
+					case MSGMODE_STDIN_FILE:
+						rc = my_publish(mosq, &mid_sent, cfg.topic, cfg.msglen, cfg.message, cfg.qos, cfg.retain);
+						break;
+					case MSGMODE_NULL:
+						rc = my_publish(mosq, &mid_sent, cfg.topic, 0, NULL, cfg.qos, cfg.retain);
+						break;
+					case MSGMODE_STDIN_LINE:
+						break;
+				}
+				if(rc){
+					fprintf(stderr, "Error sending repeat publish: %s", mosquitto_strerror(rc));
+				}
+			}
 		}
-		memcpy(&(message[pos]), buf, rlen);
-		pos += rlen;
-	}
-	msglen = pos;
+	}while(rc == MOSQ_ERR_SUCCESS && connected);
 
-	if(!msglen){
-		if(!quiet) fprintf(stderr, "Error: Zero length input.\n");
-		return 1;
+	if(mode == MSGMODE_STDIN_LINE){
+		mosquitto_loop_stop(mosq, false);
 	}
-
 	return 0;
 }
 
-int load_file(const char *filename)
+
+void pub_shared_cleanup(void)
 {
-	long pos, rlen;
-	FILE *fptr = NULL;
-
-	fptr = fopen(filename, "rb");
-	if(!fptr){
-		if(!quiet) fprintf(stderr, "Error: Unable to open file \"%s\".\n", filename);
-		return 1;
-	}
-	mode = MSGMODE_FILE;
-	fseek(fptr, 0, SEEK_END);
-	msglen = ftell(fptr);
-	if(msglen > 268435455){
-		fclose(fptr);
-		if(!quiet) fprintf(stderr, "Error: File \"%s\" is too large (>268,435,455 bytes).\n", filename);
-		return 1;
-	}else if(msglen == 0){
-		fclose(fptr);
-		if(!quiet) fprintf(stderr, "Error: File \"%s\" is empty.\n", filename);
-		return 1;
-	}else if(msglen < 0){
-		fclose(fptr);
-		if(!quiet) fprintf(stderr, "Error: Unable to determine size of file \"%s\".\n", filename);
-		return 1;
-	}
-	fseek(fptr, 0, SEEK_SET);
-	message = malloc(msglen);
-	if(!message){
-		fclose(fptr);
-		if(!quiet) fprintf(stderr, "Error: Out of memory.\n");
-		return 1;
-	}
-	pos = 0;
-	while(pos < msglen){
-		rlen = fread(&(message[pos]), sizeof(char), msglen-pos, fptr);
-		pos += rlen;
-	}
-	fclose(fptr);
-	return 0;
+	free(line_buf);
 }
+
 
 void print_usage(void)
 {
@@ -209,7 +333,7 @@ void print_usage(void)
 	printf("mosquitto_pub version %s running on libmosquitto %d.%d.%d.\n\n", VERSION, major, minor, revision);
 	printf("Usage: mosquitto_pub {[-h host] [-p port] [-u username [-P password]] -t topic | -L URL}\n");
 	printf("                     {-f file | -l | -n | -m message}\n");
-	printf("                     [-c] [-k keepalive] [-q qos] [-r]\n");
+	printf("                     [-c] [-k keepalive] [-q qos] [-r] [--repeat N] [--repeat-delay time]\n");
 #ifdef WITH_SRV
 	printf("                     [-A bind_address] [-S]\n");
 #else
@@ -222,7 +346,9 @@ void print_usage(void)
 	printf("                     [--will-topic [--will-payload payload] [--will-qos qos] [--will-retain]]\n");
 #ifdef WITH_TLS
 	printf("                     [{--cafile file | --capath dir} [--cert file] [--key file]\n");
-	printf("                      [--ciphers ciphers] [--insecure]]\n");
+	printf("                       [--ciphers ciphers] [--insecure]\n");
+	printf("                       [--tls-alpn protocol]\n");
+	printf("                       [--tls-engine engine] [--keyform keyform] [--tls-engine-kpass-sha1]]\n");
 #ifdef FINAL_WITH_TLS_PSK
 	printf("                     [--psk hex-key --psk-identity identity [--ciphers ciphers]]\n");
 #endif
@@ -230,10 +356,13 @@ void print_usage(void)
 #ifdef WITH_SOCKS
 	printf("                     [--proxy socks-url]\n");
 #endif
+	printf("                     [--property command identifier value]\n");
+	printf("                     [-D command identifier value]\n");
 	printf("       mosquitto_pub --help\n\n");
 	printf(" -A : bind the outgoing socket to this host/ip address. Use to control which interface\n");
 	printf("      the client communicates over.\n");
 	printf(" -d : enable debug messages.\n");
+	printf(" -D : Define MQTT v5 properties. See the documentation for more details.\n");
 	printf(" -f : send the contents of a file as the message.\n");
 	printf(" -h : mqtt host to connect to. Defaults to localhost.\n");
 	printf(" -i : id to use for this client. Defaults to mosquitto_pub_ appended with the process id.\n");
@@ -257,8 +386,10 @@ void print_usage(void)
 	printf(" -t : mqtt topic to publish to.\n");
 	printf(" -u : provide a username\n");
 	printf(" -V : specify the version of the MQTT protocol to use when connecting.\n");
-	printf("      Can be mqttv31 or mqttv311. Defaults to mqttv311.\n");
+	printf("      Can be mqttv5, mqttv311 or mqttv31. Defaults to mqttv311.\n");
 	printf(" --help : display this message.\n");
+	printf(" --repeat : if publish mode is -f, -m, or -s, then repeat the publish N times.\n");
+	printf(" --repeat-delay : if using --repeat, wait time seconds between publishes. Defaults to 0.\n");
 	printf(" --quiet : don't print error messages.\n");
 	printf(" --will-payload : payload for the client Will, which is sent by the broker in case of\n");
 	printf("                  unexpected disconnection. If not given and will-topic is set, a zero\n");
@@ -273,13 +404,16 @@ void print_usage(void)
 	printf("            communication.\n");
 	printf(" --cert : client certificate for authentication, if required by server.\n");
 	printf(" --key : client private key for authentication, if required by server.\n");
+	printf(" --keyform : keyfile type, can be either \"pem\" or \"engine\".\n");
 	printf(" --ciphers : openssl compatible list of TLS ciphers to support.\n");
-	printf(" --tls-version : TLS protocol version, can be one of tlsv1.2 tlsv1.1 or tlsv1.\n");
+	printf(" --tls-version : TLS protocol version, can be one of tlsv1.3 tlsv1.2 or tlsv1.1.\n");
 	printf("                 Defaults to tlsv1.2 if available.\n");
 	printf(" --insecure : do not check that the server certificate hostname matches the remote\n");
 	printf("              hostname. Using this option means that you cannot be sure that the\n");
 	printf("              remote host is the server you wish to connect to and so is insecure.\n");
 	printf("              Do not use this option in a production environment.\n");
+	printf(" --tls-engine : If set, enables the use of a TLS engine device.\n");
+	printf(" --tls-engine-kpass-sha1 : SHA1 of the key password to be used with the selected SSL engine.\n");
 #  ifdef FINAL_WITH_TLS_PSK
 	printf(" --psk : pre-shared-key in hexadecimal (no leading 0x) to enable TLS-PSK mode.\n");
 	printf(" --psk-identity : client identity string for TLS-PSK mode.\n");
@@ -290,191 +424,106 @@ void print_usage(void)
 	printf("           socks5h://[username[:password]@]hostname[:port]\n");
 	printf("           Only \"none\" and \"username\" authentication is supported.\n");
 #endif
-	printf("\nSee http://mosquitto.org/ for more information.\n\n");
+	printf("\nSee https://mosquitto.org/ for more information.\n\n");
 }
 
 int main(int argc, char *argv[])
 {
-	struct mosq_config cfg;
 	struct mosquitto *mosq = NULL;
 	int rc;
-	int rc2;
-	char *buf, *buf2;
-	int buf_len = 1024;
-	int buf_len_actual;
-	int read_len;
-	int pos;
 
-	buf = malloc(buf_len);
-	if(!buf){
-		fprintf(stderr, "Error: Out of memory.\n");
-		return 1;
-	}
+	mosquitto_lib_init();
+
+	if(pub_shared_init()) return 1;
 
 	memset(&cfg, 0, sizeof(struct mosq_config));
 	rc = client_config_load(&cfg, CLIENT_PUB, argc, argv);
 	if(rc){
-		client_config_cleanup(&cfg);
 		if(rc == 2){
 			/* --help */
 			print_usage();
 		}else{
 			fprintf(stderr, "\nUse 'mosquitto_pub --help' to see usage.\n");
 		}
-		free(buf);
-		return 1;
+		goto cleanup;
 	}
-
-	topic = cfg.topic;
-	message = cfg.message;
-	msglen = cfg.msglen;
-	qos = cfg.qos;
-	retain = cfg.retain;
-	mode = cfg.pub_mode;
-	username = cfg.username;
-	password = cfg.password;
-	quiet = cfg.quiet;
 
 #ifndef WITH_THREADING
 	if(cfg.pub_mode == MSGMODE_STDIN_LINE){
 		fprintf(stderr, "Error: '-l' mode not available, threading support has not been compiled in.\n");
-		free(buf);
-		return 1;
+		goto cleanup;
 	}
 #endif
 
 	if(cfg.pub_mode == MSGMODE_STDIN_FILE){
 		if(load_stdin()){
 			fprintf(stderr, "Error loading input from stdin.\n");
-			free(buf);
-			return 1;
+			goto cleanup;
 		}
 	}else if(cfg.file_input){
 		if(load_file(cfg.file_input)){
 			fprintf(stderr, "Error loading input file \"%s\".\n", cfg.file_input);
-			free(buf);
-			return 1;
+			goto cleanup;
 		}
 	}
 
-	if(!topic || mode == MSGMODE_NONE){
+	if(!cfg.topic || cfg.pub_mode == MSGMODE_NONE){
 		fprintf(stderr, "Error: Both topic and message must be supplied.\n");
 		print_usage();
-		free(buf);
-		return 1;
+		goto cleanup;
 	}
 
 
-	mosquitto_lib_init();
-
-	if(client_id_generate(&cfg, "mosqpub")){
-		free(buf);
-		return 1;
+	if(client_id_generate(&cfg)){
+		goto cleanup;
 	}
 
 	mosq = mosquitto_new(cfg.id, true, NULL);
 	if(!mosq){
 		switch(errno){
 			case ENOMEM:
-				if(!quiet) fprintf(stderr, "Error: Out of memory.\n");
+				if(!cfg.quiet) fprintf(stderr, "Error: Out of memory.\n");
 				break;
 			case EINVAL:
-				if(!quiet) fprintf(stderr, "Error: Invalid id.\n");
+				if(!cfg.quiet) fprintf(stderr, "Error: Invalid id.\n");
 				break;
 		}
-		mosquitto_lib_cleanup();
-		free(buf);
-		return 1;
+		goto cleanup;
 	}
 	if(cfg.debug){
 		mosquitto_log_callback_set(mosq, my_log_callback);
 	}
-	mosquitto_connect_callback_set(mosq, my_connect_callback);
-	mosquitto_disconnect_callback_set(mosq, my_disconnect_callback);
-	mosquitto_publish_callback_set(mosq, my_publish_callback);
+	mosquitto_connect_v5_callback_set(mosq, my_connect_callback);
+	mosquitto_disconnect_v5_callback_set(mosq, my_disconnect_callback);
+	mosquitto_publish_v5_callback_set(mosq, my_publish_callback);
 
 	if(client_opts_set(mosq, &cfg)){
-		free(buf);
-		return 1;
+		goto cleanup;
 	}
+
 	rc = client_connect(mosq, &cfg);
-	if(rc) return rc;
-
-	if(mode == MSGMODE_STDIN_LINE){
-		mosquitto_loop_start(mosq);
+	if(rc){
+		goto cleanup;
 	}
 
-	do{
-		if(mode == MSGMODE_STDIN_LINE){
-			if(status == STATUS_CONNACK_RECVD){
-				pos = 0;
-				read_len = buf_len;
-				while(fgets(&buf[pos], read_len, stdin)){
-					buf_len_actual = strlen(buf);
-					if(buf[buf_len_actual-1] == '\n'){
-						buf[buf_len_actual-1] = '\0';
-						rc2 = mosquitto_publish(mosq, &mid_sent, topic, buf_len_actual-1, buf, qos, retain);
-						if(rc2){
-							if(!quiet) fprintf(stderr, "Error: Publish returned %d, disconnecting.\n", rc2);
-							mosquitto_disconnect(mosq);
-						}
-						break;
-					}else{
-						buf_len += 1024;
-						pos += 1023;
-						read_len = 1024;
-						buf2 = realloc(buf, buf_len);
-						if(!buf2){
-							free(buf);
-							fprintf(stderr, "Error: Out of memory.\n");
-							return 1;
-						}
-						buf = buf2;
-					}
-				}
-				if(feof(stdin)){
-					if(last_mid == -1){
-						/* Empty file */
-						mosquitto_disconnect(mosq);
-						disconnect_sent = true;
-						status = STATUS_DISCONNECTING;
-					}else{
-						last_mid = mid_sent;
-						status = STATUS_WAITING;
-					}
-				}
-			}else if(status == STATUS_WAITING){
-				if(last_mid_sent == last_mid && disconnect_sent == false){
-					mosquitto_disconnect(mosq);
-					disconnect_sent = true;
-				}
-#ifdef WIN32
-				Sleep(100);
-#else
-				struct timespec ts;
-				ts.tv_sec = 0;
-				ts.tv_nsec = 100000000;
-				nanosleep(&ts, NULL);
-#endif
-			}
-			rc = MOSQ_ERR_SUCCESS;
-		}else{
-			rc = mosquitto_loop(mosq, -1, 1);
-		}
-	}while(rc == MOSQ_ERR_SUCCESS && connected);
+	rc = pub_shared_loop(mosq);
 
-	if(mode == MSGMODE_STDIN_LINE){
-		mosquitto_loop_stop(mosq, false);
-	}
-
-	if(message && mode == MSGMODE_FILE){
-		free(message);
+	if(cfg.message && cfg.pub_mode == MSGMODE_FILE){
+		free(cfg.message);
 	}
 	mosquitto_destroy(mosq);
 	mosquitto_lib_cleanup();
+	client_config_cleanup(&cfg);
+	pub_shared_cleanup();
 
 	if(rc){
 		fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
 	}
 	return rc;
+
+cleanup:
+	mosquitto_lib_cleanup();
+	client_config_cleanup(&cfg);
+	pub_shared_cleanup();
+	return 1;
 }

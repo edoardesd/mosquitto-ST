@@ -308,6 +308,11 @@ static int mosquitto__loop_rc_handle(struct mosquitto *mosq, int rc)
 			mosq->on_disconnect(mosq, mosq->userdata, rc);
 			mosq->in_callback = false;
 		}
+		if(mosq->on_disconnect_v5){
+			mosq->in_callback = true;
+			mosq->on_disconnect_v5(mosq, mosq->userdata, rc, NULL);
+			mosq->in_callback = false;
+		}
 		pthread_mutex_unlock(&mosq->callback_mutex);
 		return rc;
 	}
@@ -327,13 +332,13 @@ int mosquitto_loop_read(struct mosquitto *mosq, int max_packets)
 	}
 #endif
 
-	pthread_mutex_lock(&mosq->out_message_mutex);
-	max_packets = mosq->out_queue_len;
-	pthread_mutex_unlock(&mosq->out_message_mutex);
+	pthread_mutex_lock(&mosq->msgs_out.mutex);
+	max_packets = mosq->msgs_out.queue_len;
+	pthread_mutex_unlock(&mosq->msgs_out.mutex);
 
-	pthread_mutex_lock(&mosq->in_message_mutex);
-	max_packets += mosq->in_queue_len;
-	pthread_mutex_unlock(&mosq->in_message_mutex);
+	pthread_mutex_lock(&mosq->msgs_in.mutex);
+	max_packets += mosq->msgs_in.queue_len;
+	pthread_mutex_unlock(&mosq->msgs_in.mutex);
 
 	if(max_packets < 1) max_packets = 1;
 	/* Queue len here tells us how many messages are awaiting processing and
@@ -362,13 +367,13 @@ int mosquitto_loop_write(struct mosquitto *mosq, int max_packets)
 	int i;
 	if(max_packets < 1) return MOSQ_ERR_INVAL;
 
-	pthread_mutex_lock(&mosq->out_message_mutex);
-	max_packets = mosq->out_queue_len;
-	pthread_mutex_unlock(&mosq->out_message_mutex);
+	pthread_mutex_lock(&mosq->msgs_out.mutex);
+	max_packets = mosq->msgs_out.queue_len;
+	pthread_mutex_unlock(&mosq->msgs_out.mutex);
 
-	pthread_mutex_lock(&mosq->in_message_mutex);
-	max_packets += mosq->in_queue_len;
-	pthread_mutex_unlock(&mosq->in_message_mutex);
+	pthread_mutex_lock(&mosq->msgs_in.mutex);
+	max_packets += mosq->msgs_in.queue_len;
+	pthread_mutex_unlock(&mosq->msgs_in.mutex);
 
 	if(max_packets < 1) max_packets = 1;
 	/* Queue len here tells us how many messages are awaiting processing and

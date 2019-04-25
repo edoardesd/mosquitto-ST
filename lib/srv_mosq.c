@@ -49,6 +49,11 @@ static void srv_callback(void *arg, int status, int timeouts, unsigned char *abu
 			mosq->on_disconnect(mosq, mosq->userdata, MOSQ_ERR_LOOKUP);
 			mosq->in_callback = false;
 		}
+		if(mosq->on_disconnect_v5){
+			mosq->in_callback = true;
+			mosq->on_disconnect_v5(mosq, mosq->userdata, MOSQ_ERR_LOOKUP, NULL);
+			mosq->in_callback = false;
+		}
 		pthread_mutex_unlock(&mosq->callback_mutex);
 	}
 }
@@ -95,6 +100,11 @@ int mosquitto_connect_srv(struct mosquitto *mosq, const char *host, int keepaliv
 	return MOSQ_ERR_SUCCESS;
 
 #else
+	UNUSED(mosq);
+	UNUSED(host);
+	UNUSED(keepalive);
+	UNUSED(bind_address);
+
 	return MOSQ_ERR_NOT_SUPPORTED;
 #endif
 }

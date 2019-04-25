@@ -1,14 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Test for CVE-2018-xxxxx.
 
-import inspect, os, sys
-# From http://stackoverflow.com/questions/279237/python-import-a-module-from-a-folder
-cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile( inspect.currentframe() ))[0],"..")))
-if cmd_subfolder not in sys.path:
-    sys.path.insert(0, cmd_subfolder)
-
-import mosq_test
+from mosq_test_helper import *
 import signal
 
 def write_config(filename, port, per_listener):
@@ -41,7 +35,7 @@ def do_test(port, connack_rc, username, password):
         sock.close()
     finally:
         if rc:
-            exit(rc)
+            raise AssertionError
 
 
 def username_password_tests(port):
@@ -54,7 +48,7 @@ def username_password_tests(port):
         do_test(port, connack_rc=5, username='test', password=None)
         do_test(port, connack_rc=5, username='empty', password='test')
         do_test(port, connack_rc=5, username='empty', password='bad')
-        do_test(port, connack_rc=0, username='empty', password='')
+        do_test(port, connack_rc=5, username='empty', password='')
         do_test(port, connack_rc=5, username='empty', password=None)
         do_test(port, connack_rc=5, username='bad', password='test')
         do_test(port, connack_rc=5, username='bad', password='bad')
@@ -167,3 +161,5 @@ try:
 finally:
     os.remove(conf_file)
     os.remove(pw_file)
+
+sys.exit(0)

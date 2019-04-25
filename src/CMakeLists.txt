@@ -3,12 +3,15 @@ include_directories(${mosquitto_SOURCE_DIR} ${mosquitto_SOURCE_DIR}/src
 		${STDBOOL_H_PATH} ${STDINT_H_PATH})
 
 set (MOSQ_SRCS
+	../lib/alias_mosq.c ../lib/alias_mosq.h
 	conf.c
 	conf_includedir.c
 	context.c
 	database.c
+	handle_auth.c
 	handle_connack.c
 	handle_connect.c
+	handle_disconnect.c
 	../lib/handle_ping.c
 	../lib/handle_pubackcomp.c
 	handle_publish.c
@@ -25,15 +28,20 @@ set (MOSQ_SRCS
 	mosquitto.c
 	mosquitto_broker.h mosquitto_broker_internal.h
 	net.c
-	../lib/net_mosq.c ../lib/net_mosq.h
+	../lib/net_mosq_ocsp.c ../lib/net_mosq.c ../lib/net_mosq.h
+	../lib/packet_datatypes.c
 	../lib/packet_mosq.c ../lib/packet_mosq.h
-	persist.c persist.h
+	persist_read_v234.c persist_read_v5.c persist_read.c
+	persist_write_v5.c persist_write.c
+	persist.h
 	plugin.c
+	property_broker.c
+	../lib/property_mosq.c ../lib/property_mosq.h
 	read_handle.c
 	../lib/read_handle.h
-	subs.c
 	security.c security_default.c
 	../lib/send_mosq.c ../lib/send_mosq.h
+	send_auth.c
 	send_connack.c
 	../lib/send_connect.c
 	../lib/send_disconnect.c
@@ -41,13 +49,17 @@ set (MOSQ_SRCS
 	send_suback.c
 	signals.c
 	../lib/send_subscribe.c
+	send_unsuback.c
 	../lib/send_unsubscribe.c
+	session_expiry.c
+	subs.c
 	sys_tree.c sys_tree.h
 	../lib/time_mosq.c
 	../lib/tls_mosq.c
-	../lib/util_mosq.c ../lib/util_mosq.h
+	../lib/util_mosq.c ../lib/util_topic.c ../lib/util_mosq.h
 	../lib/utf8_mosq.c
 	websockets.c
+	will_delay.c
 	../lib/will_mosq.c ../lib/will_mosq.h)
 
 
@@ -115,8 +127,13 @@ endif (WIN32 OR CYGWIN)
 
 add_definitions (-DWITH_BROKER)
 
-set (MOSQ_LIBS ${MOSQ_LIBS} ${OPENSSL_LIBRARIES})
+if (WITH_DLT)
+    message(STATUS "DLT_LIBDIR = ${DLT_LIBDIR}")
+    link_directories(${DLT_LIBDIR})
+    set (MOSQ_LIBS ${DLT_LIBRARIES})
+endif (WITH_DLT)
 
+set (MOSQ_LIBS ${MOSQ_LIBS} ${OPENSSL_LIBRARIES})
 # Check for getaddrinfo_a
 include(CheckLibraryExists)
 check_library_exists(anl getaddrinfo_a  "" HAVE_GETADDRINFO_A)
@@ -155,15 +172,6 @@ if (WITH_WEBSOCKETS)
 		set (MOSQ_LIBS ${MOSQ_LIBS} websockets)
 	endif (STATIC_WEBSOCKETS)
 endif (WITH_WEBSOCKETS)
-
-# Simple detect libuuid
-if(NOT APPLE)
-	FIND_PATH(UUID_HEADER uuid/uuid.h)
-	if (UUID_HEADER)
-		add_definitions(-DWITH_UUID)
-		set (MOSQ_LIBS ${MOSQ_LIBS} uuid)
-	endif (UUID_HEADER)
-endif(NOT APPLE)
 
 add_executable(mosquitto ${MOSQ_SRCS})
 target_link_libraries(mosquitto ${MOSQ_LIBS})

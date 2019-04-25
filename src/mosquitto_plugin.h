@@ -17,7 +17,7 @@ Contributors:
 #ifndef MOSQUITTO_PLUGIN_H
 #define MOSQUITTO_PLUGIN_H
 
-#define MOSQ_AUTH_PLUGIN_VERSION 3
+#define MOSQ_AUTH_PLUGIN_VERSION 4
 
 #define MOSQ_ACL_NONE 0x00
 #define MOSQ_ACL_READ 0x01
@@ -220,11 +220,14 @@ int mosquitto_auth_security_cleanup(void *user_data, struct mosquitto_opt *opts,
  *	MOSQ_ERR_UNKNOWN for an application specific error.
  *	MOSQ_ERR_PLUGIN_DEFER if your plugin does not wish to handle this check.
  */
-int mosquitto_auth_acl_check(void *user_data, int access, const struct mosquitto *client, const struct mosquitto_acl_msg *msg);
+int mosquitto_auth_acl_check(void *user_data, int access, struct mosquitto *client, const struct mosquitto_acl_msg *msg);
 
 
 /*
  * Function: mosquitto_auth_unpwd_check
+ *
+ * This function is OPTIONAL. Only include this function in your plugin if you
+ * are making basic username/password checks.
  *
  * Called by the broker when a username/password must be checked.
  *
@@ -234,11 +237,14 @@ int mosquitto_auth_acl_check(void *user_data, int access, const struct mosquitto
  *	MOSQ_ERR_UNKNOWN for an application specific error.
  *	MOSQ_ERR_PLUGIN_DEFER if your plugin does not wish to handle this check.
  */
-int mosquitto_auth_unpwd_check(void *user_data, const struct mosquitto *client, const char *username, const char *password);
+int mosquitto_auth_unpwd_check(void *user_data, struct mosquitto *client, const char *username, const char *password);
 
 
 /*
  * Function: mosquitto_psk_key_get
+ *
+ * This function is OPTIONAL. Only include this function in your plugin if you
+ * are making TLS-PSK checks.
  *
  * Called by the broker when a client connects to a listener using TLS/PSK.
  * This is used to retrieve the pre-shared-key associated with a client
@@ -259,6 +265,34 @@ int mosquitto_auth_unpwd_check(void *user_data, const struct mosquitto *client, 
  *	Return >0 on failure.
  *	Return MOSQ_ERR_PLUGIN_DEFER if your plugin does not wish to handle this check.
  */
-int mosquitto_auth_psk_key_get(void *user_data, const struct mosquitto *client, const char *hint, const char *identity, char *key, int max_key_len);
+int mosquitto_auth_psk_key_get(void *user_data, struct mosquitto *client, const char *hint, const char *identity, char *key, int max_key_len);
 
+/*
+ * Function: mosquitto_auth_start
+ *
+ * This function is OPTIONAL. Only include this function in your plugin if you
+ * are making extended authentication checks.
+ *
+ * Parameters:
+ *	user_data :   the pointer provided in <mosquitto_auth_plugin_init>.
+ *	method : the authentication method
+ *	reauth : this is set to false if this is the first authentication attempt
+ *	         on a connection, set to true if the client is attempting to
+ *	         reauthenticate.
+ *	data_in : pointer to authentication data, or NULL
+ *	data_in_len : length of data_in, in bytes
+ *	data_out : if your plugin wishes to send authentication data back to the
+ *	           client, allocate some memory using malloc or friends and set
+ *	           data_out. The broker will free the memory after use.
+ *	data_out_len : Set the length of data_out in bytes.
+ *
+ * Return value:
+ *	Return MOSQ_ERR_SUCCESS if authentication was successful.
+ *	Return MOSQ_ERR_AUTH_CONTINUE if the authentication is a multi step process and can continue.
+ *	Return MOSQ_ERR_AUTH if authentication was valid but did not succeed.
+ *	Return any other relevant positive integer MOSQ_ERR_* to produce an error.
+ */
+int mosquitto_auth_start(void *user_data, struct mosquitto *client, const char *method, bool reauth, const void *data_in, uint16_t data_in_len, void **data_out, uint16_t *data_out_len);
+
+int mosquitto_auth_continue(void *user_data, struct mosquitto *client, const char *method, const void *data_in, uint16_t data_in_len, void **data_out, uint16_t *data_out_len);
 #endif
