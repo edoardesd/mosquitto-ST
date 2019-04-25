@@ -3,7 +3,7 @@ Author: Roger Light <roger@atchoo.org>
 Forwarded: yes
 --- a/config.mk
 +++ b/config.mk
-@@ -241,8 +241,10 @@
+@@ -244,8 +244,10 @@
  endif
  
  ifeq ($(WITH_SYSTEMD),yes)

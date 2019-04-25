@@ -1,3 +1,12 @@
+mosquitto (1.5.7-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Remove fix-step3.patch, fixed upstream.
+  * bug-1162.patch: fix bug with clients being disconnected in some situations
+    when ACLs are in use.
+
+ -- Roger A. Light <roger@atchoo.org>  Mon, 18 Feb 2019 09:28:40 +0000
+
 mosquitto (1.5.6-1) unstable; urgency=medium
   
   * SECURITY UPDATE: If Mosquitto is configured to use a password file for

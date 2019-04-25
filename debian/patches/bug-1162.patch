@@ -1,0 +1,15 @@
+Description: Fix clients being disconnected in some situations when ACLs are in use. Issue #1162.
+Author: Roger Light <roger@atchoo.org>
+Forwarded: not-needed
+--- a/src/security_default.c
++++ b/src/security_default.c
+@@ -642,9 +642,6 @@
+ 			}
+ 			acl_tail = acl_tail->next;
+ 		}
+-		if(context->username && context->acl_list == NULL){
+-			return MOSQ_ERR_INVAL;
+-		}
+ 	}else{
+ 		context->acl_list = NULL;
+ 	}
