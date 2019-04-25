@@ -1,3 +1,10 @@
+mosquitto (1.5.8-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Remove bug-1162.patch, fixed upstream.
+
+ -- Roger A. Light <roger@atchoo.org>  Wed, 06 Mar 2019 10:21:43 +0000
+
 mosquitto (1.5.7-1) unstable; urgency=medium
 
   * New upstream release.
