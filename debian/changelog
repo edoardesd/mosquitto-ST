@@ -1,3 +1,11 @@
+mosquitto (1.6.0-0mosquitto1) stretch; urgency=medium
+
+  * New upstream release.
+  * Add mosquitto_rr to mosquitto-clients package.
+  * Set logrotation compression to delayed to avoid races when rotating.
+
+ -- Roger A. Light <roger@atchoo.org>  Thu, 25 Apr 2019 15:10:40 +0100
+
 mosquitto (1.5.8-0mosquitto1) stretch; urgency=medium
 
   * New upstream release.

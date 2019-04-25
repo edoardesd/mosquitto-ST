@@ -8,8 +8,7 @@ Build-Depends: debhelper (>= 10),
                libwebsockets-dev,
                libwrap0-dev,
                pkg-config,
-               uthash-dev,
-               uuid-dev
+               uthash-dev
 Standards-Version: 4.3.0
 Homepage: https://mosquitto.org/
 Vcs-Git: https://github.com/eclipse/mosquitto
@@ -19,13 +18,12 @@ Package: mosquitto
 Architecture: any
 Multi-Arch: foreign
 Depends: adduser (>= 3.10),
-         libuuid1,
          lsb-base (>=4.1+Debian3),
          ${misc:Depends},
          ${shlibs:Depends}
 Suggests: apparmor
-Description: MQTT version 3.1/3.1.1 compatible message broker
- This is a message broker that supports version 3.1 and 3.1.1 of the MQTT
+Description: MQTT version 3.1/3.1.1/5.0 compatible message broker
+ This is a message broker that supports version 5.0 and 3.1.1 of the MQTT
  protocol.
  .
  MQTT provides a method of carrying out messaging using a publish/subscribe
@@ -52,8 +50,8 @@ Section: libs
 Architecture: any
 Multi-Arch: same
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: MQTT version 3.1/3.1.1 client library
- This is a C library for implementing MQTT version 3.1/3.1.1 clients.
+Description: MQTT version 3.1/3.1.1/5.0 client library
+ This is a C library for implementing MQTT version 3.1/3.1.1/5.0 clients.
  .
  MQTT provides a method of carrying out messaging using a publish/subscribe
  model. It is lightweight, both in terms of bandwidth usage and ease of
@@ -70,9 +68,9 @@ Depends: libmosquitto1 (<< ${source:Version}.1~),
          ${misc:Depends}
 Replaces: libmosquitto0-dev (<< 1.2-1~)
 Breaks: libmosquitto0-dev (<< 1.2-1~)
-Description: MQTT version 3.1/3.1.1 client library, development files
+Description: MQTT version 3.1/3.1.1/5.0 client library, development files
  This is the header and man page for the libmosquitto1 C library, which is a
- library for implementing MQTT version 3.1/3.1.1 clients. This package is
+ library for implementing MQTT version 3.1/3.1.1/5.0 clients. This package is
  needed to do development with libmosquitto1.
 
 Package: libmosquittopp1
@@ -114,9 +112,10 @@ Depends: libmosquitto1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: Mosquitto command line MQTT clients
- This is two MQTT version 3.1/3.1.1 command line clients. mosquitto_pub can be
- used to publish messages to a broker and mosquitto_sub can be used to
- subscribe to a topic to receive messages.
+ This is three MQTT version 3.1/3.1.1/5.0 command line clients. mosquitto_pub
+ can be used to publish messages to a broker. mosquitto_sub can be used to
+ subscribe to a topic to receive messages. mosquitto_rr can be used to carry
+ out request/response type messaging.
  .
  MQTT provides a method of carrying out messaging using a publish/subscribe
  model. It is lightweight, both in terms of bandwidth usage and ease of

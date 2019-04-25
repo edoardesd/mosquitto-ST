@@ -2,6 +2,7 @@
 	rotate 7
 	daily
 	compress
+	delaycompress
 	size 100k
 	nocreate
 	missingok

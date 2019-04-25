@@ -3,7 +3,7 @@ Author: Roger Light <roger@atchoo.org>
 Forwarded: not-needed
 --- a/Makefile
 +++ b/Makefile
-@@ -49,6 +49,7 @@
+@@ -52,6 +52,7 @@
  endif
  	$(INSTALL) -d "${DESTDIR}/etc/mosquitto"
  	$(INSTALL) -m 644 mosquitto.conf "${DESTDIR}/etc/mosquitto/mosquitto.conf.example"
