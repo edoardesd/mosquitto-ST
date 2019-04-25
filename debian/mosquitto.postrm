@@ -19,9 +19,6 @@ case "$1" in
         rm -f /etc/apparmor.d/disable/$APP_PROFILE >/dev/null 2>&1 || true
 	;;
 	remove|abort-install|abort-upgrade|disappear)
-		if which deluser >/dev/null 2>&1; then
-			deluser --quiet mosquitto > /dev/null || true
-		fi
 	;;
 
 	upgrade|failed-upgrade)

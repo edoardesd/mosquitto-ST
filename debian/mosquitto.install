@@ -2,6 +2,7 @@ etc/mosquitto/ca_certificates/README
 etc/mosquitto/certs/README
 etc/mosquitto/conf.d/README
 etc/mosquitto/mosquitto.conf
+lib/systemd/system/mosquitto.service
 usr/bin/mosquitto_passwd
 usr/sbin/mosquitto
 usr/share/man/man1/mosquitto_passwd.1

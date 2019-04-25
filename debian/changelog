@@ -1,22 +1,129 @@
-mosquitto (1.5-0mosquitto2) stretch; urgency=medium
+mosquitto (1.5.8-0mosquitto1) stretch; urgency=medium
 
-  * Bump version for new repository.
+  * New upstream release.
+  * Remove bug-1162.patch
 
- -- Roger A. Light <roger@atchoo.org>  Wed, 08 Aug 2018 14:10:44 +0100
+ -- Roger A. Light <roger@atchoo.org>  Thu, 28 Feb 2019 20:10:54 +0000
 
-mosquitto (1.5-0mosquitto1) unstable; urgency=medium
+mosquitto (1.5.7-0mosquitto1) stretch; urgency=medium
 
-  * New upstream version.
+  * New upstream release.
+  * Remove fix-step3.patch, fixed upstream.
+  * bug-1162.patch: fix bug with clients being disconnected in some situations
+    when ACLs are in use.
 
- -- Roger A. Light <roger@atchoo.org>  Sat, 12 May 2018 21:13:05 +0100
+ -- Roger A. Light <roger@atchoo.org>  Mon, 18 Feb 2019 09:28:40 +0000
 
-mosquitto (1.4.15-0mosquitto3) unstable; urgency=medium
+mosquitto (1.5.6-1) unstable; urgency=medium
 
-  * Bump version for raspbian build fixes.
+  * SECURITY UPDATE: If Mosquitto is configured to use a password file for
+    authentication, any malformed data in the password file will be treated as
+    valid. This typically means that the malformed data becomes a username and
+    no password. If this occurs, clients can circumvent authentication and get
+    access to the broker by using the malformed username. In particular, a blank
+    line will be treated as a valid empty username. Other security measures are
+    unaffected. Users who have only used the mosquitto_passwd utility to create
+    and modify their password files are unaffected by this vulnerability.
+    - debian/patches/mosquitto-1.4.x-cve-2018-12551.patch: this fix introduces
+      more stringent parsing tests on the password file data.
+    - CVE-2018-12551
+  * SECURITY UPDATE: If an ACL file is empty, or has only blank lines or
+    comments, then mosquitto treats the ACL file as not being defined, which
+    means that no topic access is denied. Although denying access to all
+    topics is not a useful configuration, this behaviour is unexpected and
+    could lead to access being incorrectly granted in some circumstances.
+    - debian/patches/mosquitto-1.4.x-cve-2018-12550.patch: this fix ensures
+      that if an ACL file is defined but no rules are defined, then access will
+      be denied.
+    - CVE-2018-12550
+  * SECURITY UPDATE: If a client publishes a retained message to a topic that
+    they have access to, and then their access to that topic is revoked, the
+    retained message will still be delivered to future subscribers. This
+    behaviour may be undesirable in some applications, so a configuration
+    option `check_retain_source` has been introduced to enforce checking of
+    the retained message source on publish.
+    - debian/patches/mosquitto-1.4.8-cve-2018-12546.patch: this patch stores
+      the originator of the retained message, so security checking can be
+      carried out before re-publishing. The complexity of the patch is due to
+      the need to save this information across broker restarts.
+    - CVE-2018-12546
+  * New upstream release.
+  * Bump standards version to 4.3.0, no changes needed.
+  * fix-step3.patch: fix compilation error.
 
- -- Roger A. Light <roger@atchoo.org>  Sat, 07 Apr 2018 11:13:41 +0100
+ -- Roger A. Light <roger@atchoo.org>  Thu, 07 Feb 2019 16:00:52 +0000
 
-mosquitto (1.4.15-0mosquitto1) unstable; urgency=medium
+mosquitto (1.5.5-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Only chown mosquitto.log if it exists. (Closes: #916558)
+
+ -- Andreas Henriksson <andreas@fatal.se>  Sat, 22 Dec 2018 16:54:06 +0100
+
+mosquitto (1.5.5-1) unstable; urgency=medium
+
+  * SECURITY UPDATE: If the option `per_listener_settings` was set to true,
+    and the default listener was in use, and the default listener specified an
+    `acl_file`, then the acl file was being ignored. This affects version 1.5
+    to 1.5.4 inclusive.
+  * New upstream release.
+
+ -- Roger A. Light <roger@atchoo.org>  Tue, 11 Dec 2018 16:37:32 +0000
+
+mosquitto (1.5.4-2) unstable; urgency=medium
+
+  * debian/patches/914525.patch : Use pkg-config to get systemd libs
+    (Closes: #914525)
+    - This is needed to allow compilation on non-Linux systems.
+  * Fix FTCBFS: Let dh_auto_build pass cross tools to make. Thanks to Helmut
+    Grohne. (Closes: #914593)
+  * Ensure log files are owned by mosquitto. (Closes: #877346)
+
+ -- Roger A. Light <roger@atchoo.org>  Sun, 25 Nov 2018 13:52:16 +0000
+
+mosquitto (1.5.4-1) unstable; urgency=medium
+
+  * New upstream release (Closes: #911104).
+    - Fixes CVE-2017-7654 (Closes: #911265)
+    - Fixes CVE-2017-7653 (Closes: #911266)
+  * Remove no longer needed patches. Some are integrated into upstream, others
+    have been replaced with changes in rules.
+    - async_dns.patch
+    - build-timestamp.patch
+    - disable-in-tree-uthash.patch
+    - enable-libwrap.patch
+    - enable-websockets.patch
+    - fix-prefix.patch
+    - hurd-errno.patch
+    - libdir.patch
+    - nostrip.patch
+  * Copyright fix - src/uthash.h -> src/deps/uthash.h
+  * Update symbols files with new additions.
+  * Remove debian/mosquitto.prerm
+    - Calls to invoke-rc.d to stop mosquitto will be inserted automagically by
+      debhelper.
+  * Stop removing the mosquitto user in postrm.
+    - This is not safe since there might still be logs (and other files?)
+      around owned by the uid, so we don't want it reused for a new user.
+  * Add build dependency on libsystemd-dev.
+  * Enable systemd build support.
+  * Ship the mosquitto.service file (with sd-notify support)
+  * Drop -dbg packages and do -dbgsym migration.
+  * libmosquito{,pp}-dev: ship libmosquitto{,pp}.pc respectively.
+  * Remove unused build dependency on python-all. (Closes: #901424).
+  * Bump standards version to 4.2.1, no changes needed.
+  * Bumped dh compat level to 11.
+  * Add upstream/metadata.
+
+ -- Roger A. Light <roger@atchoo.org>  Thu, 08 Nov 2018 13:34:59 +0000
+
+mosquitto (1.4.15-2) unstable; urgency=low
+
+  * Replace mentions of 'c_rehash' with 'openssl rehash'. (Closes: #895084).
+
+ -- Roger A. Light <roger@atchoo.org>  Sat, 07 Apr 2018 11:16:43 +0100
+
+mosquitto (1.4.15-1) unstable; urgency=high
 
   * SECURITY UPDATE: If a SIGHUP is sent to the broker when there are no more
     file descriptors, then opening the configuration file will fail and
@@ -32,6 +139,10 @@ mosquitto (1.4.15-0mosquitto1) unstable; urgency=medium
       size of CONNECT packet to a reasonable value, and add "memory_limit"
       option to set the maximum memory the broker will use.
     - CVE-2017-7651
+  * New upstream release.
+  * Remove upstart support, which had accidently been reinstated in 1.4.14-2.
+  * Bumped standards version to 4.1.3, no changes required.
+  * Fix global-files-wildcard-not-first-paragraph-in-dep5-copyright.
 
  -- Roger A. Light <roger@atchoo.org>  Wed, 28 Feb 2018 11:29:47 +0000
 
@@ -41,7 +152,7 @@ mosquitto (1.4.14-2) unstable; urgency=low
   * Fix lintian warning "extended-description-line-too-long"
   * The 1.4.14 release relaxes the restrictions on client ids, which means
     that the mosquitto_pub/sub autogenerated ids are no longer a problem.
-    (closes #870165).
+    (closes: #870165).
 
  -- Roger A. Light <roger@atchoo.org>  Tue, 26 Dec 2017 22:03:57 +0000
 

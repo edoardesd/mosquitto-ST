@@ -1,2 +1,3 @@
 usr/include/mosquittopp.h
 usr/lib/*/libmosquittopp.so
+usr/lib/*/pkgconfig/libmosquittopp.pc

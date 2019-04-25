@@ -1,10 +1,13 @@
 libmosquittopp.so.1 libmosquittopp1 #MINVER#
+ (c++)"mosqpp::subscribe_simple(mosquitto_message**, int, bool, char const*, int, char const*, int, char const*, int, bool, char const*, char const*, libmosquitto_will const*, libmosquitto_tls const*)@Base" 1.5
+ (c++)"mosqpp::subscribe_callback(int (*)(mosquitto*, void*, mosquitto_message const*), void*, char const*, int, char const*, int, char const*, int, bool, char const*, char const*, libmosquitto_will const*, libmosquitto_tls const*)@Base" 1.5
  (c++)"mosqpp::lib_cleanup()@Base" 1.0
  (c++)"mosqpp::lib_version(int*, int*, int*)@Base" 1.0
  (c++)"mosqpp::mosquittopp::disconnect()@Base" 1.0
  (c++)"mosqpp::mosquittopp::loop_start()@Base" 1.0
  (c++)"mosqpp::mosquittopp::loop_write(int)@Base" 1.0
  (c++)"mosqpp::mosquittopp::on_connect(int)@Base" 1.0
+ (c++)"mosqpp::mosquittopp::on_connect_with_flags(int, int)@Base" 1.5
  (c++)"mosqpp::mosquittopp::on_message(mosquitto_message const*)@Base" 1.0
  (c++)"mosqpp::mosquittopp::on_publish(int)@Base" 1.0
  (c++)"mosqpp::mosquittopp::socks5_set(char const*, int, char const*, char const*)@Base" 1.4
@@ -53,6 +56,7 @@ libmosquittopp.so.1 libmosquittopp1 #MINVER#
  (c++)"mosqpp::sub_topic_tokenise(char const*, char***, int*)@Base" 1.0
  (c++)"mosqpp::sub_topic_tokens_free(char***, int)@Base" 1.0
  (c++)"mosqpp::lib_init()@Base" 1.0
+ (c++)"mosqpp::validate_utf8(char const*, int)@Base" 1.5
  (c++)"mosqpp::strerror(int)@Base" 1.0
  (c++)"typeinfo for mosqpp::mosquittopp@Base" 1.0
  (c++)"typeinfo name for mosqpp::mosquittopp@Base" 1.0

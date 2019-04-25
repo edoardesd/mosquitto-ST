@@ -1,9 +1,2 @@
-lws-fixes.patch
-wrap.patch
-async_dns.patch
-enable-libwrap.patch
-fix-prefix.patch
-disable-in-tree-uthash.patch
-enable-websockets.patch
-libdir.patch
-hurd-errno.patch
+914525.patch
+debian-config.patch

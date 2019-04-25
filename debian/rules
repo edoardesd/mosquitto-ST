@@ -1,22 +1,26 @@
 #!/usr/bin/make -f
 
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+export prefix=/usr
+export libdir=/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 %:
-	dh $@
+	# Don't process CMake rules, CMakeLists.txt is only included for Windows/Mac support.
+	dh $@ --buildsystem=makefile
 
 override_dh_installchangelogs:
 	dh_installchangelogs ChangeLog.txt
 
-override_dh_auto_configure:
-	# Don't process CMake rules, CMakeLists.txt is only included for Windows/Mac support.
+override_dh_auto_build:
+	dh_auto_build -- WITH_BUNDLED_DEPS=no WITH_ADNS=yes WITH_WRAP=yes WITH_WEBSOCKETS=yes WITH_STRIP=no WITH_SYSTEMD=yes
 
 override_dh_auto_test:
 
 override_dh_strip:
-	dh_strip --dbg-package=mosquitto-dbg -Xlibmosquitto
-	dh_strip --dbg-package=libmosquitto1-dbg -Xlibmosquittopp -Xsbin/mosquitto
-	dh_strip --dbg-package=libmosquittopp1-dbg -Xlibmosquitto.so -Xsbin/mosquitto
+	dh_strip -p mosquitto --dbgsym-migration='mosquitto-dbg (<< 1.5)' -Xlibmosquitto
+	dh_strip -p libmosquitto1 --dbgsym-migration='libmosquitto1-dbg (<< 1.5)' -Xlibmosquittopp -Xsbin/mosquitto
+	dh_strip -p libmosquittopp1 --dbgsym-migration='libmosquittopp1-dbg (<< 1.5)' -Xlibmosquitto.so -Xsbin/mosquitto
+	dh_strip --remaining-packages
 
 override_dh_auto_install:
 	dh_auto_install
@@ -27,3 +31,5 @@ override_dh_auto_install:
 	install -d debian/tmp/etc/mosquitto/certs/
 	install -m 644 debian/README-certs debian/tmp/etc/mosquitto/certs/README
 	install -m 644 debian/mosquitto.conf debian/tmp/etc/mosquitto/mosquitto.conf
+	install -d debian/tmp/lib/systemd/system/
+	install -m 644  ./service/systemd/mosquitto.service.notify debian/tmp/lib/systemd/system/mosquitto.service

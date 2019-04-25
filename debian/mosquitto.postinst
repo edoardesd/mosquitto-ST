@@ -17,7 +17,8 @@ setup_mosquitto_user() {
 
 fix_permissions() {
 	chown mosquitto /var/lib/mosquitto
-	chown mosquitto /var/log/mosquitto
+	test ! -e /var/log/mosquitto || chown mosquitto /var/log/mosquitto
+	test ! -e /var/log/mosquitto/mosquitto.log || chown mosquitto /var/log/mosquitto/mosquitto.log
 }
 
 case "$1" in

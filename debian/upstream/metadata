@@ -1,0 +1,16 @@
+Name: mosquitto
+Bug-Database: https://github.com/eclipse/mosquitto/issues
+Bug-Submit: https://github.com/eclipse/mosquitto/issues/new
+Changelog: https://mosquitto.org/ChangeLog.txt
+Contact: https://dev.eclipse.org/mailman/listinfo/mosquitto-dev
+Repository: https://github.com/eclipse/mosquitto
+Security-Contact: https://www.eclipse.org/security/
+Reference:
+  Author: Roger A. Light
+  Title: "Mosquitto: server and client implementation of the MQTT protocol"
+  Journal: The Journal of Open Source Software
+  Year: 2017
+  Volume: 2
+  Number: 13
+  DOI: http://dx.doi.org/10.21105/joss.00265
+  eprint: http://joss.theoj.org/papers/ebbbbf7c7a2f7e98e32ae41ee88a3bca
