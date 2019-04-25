@@ -45,6 +45,11 @@ endif
 	./02-subpub-qos0.py
 	./02-subpub-qos1.py
 	./02-subpub-qos2.py
+	./02-subpub-qos1-bad-pubrec.py
+	./02-subpub-qos1-bad-pubcomp.py
+	./02-subpub-qos2-bad-puback-1.py
+	./02-subpub-qos2-bad-puback-2.py
+	./02-subpub-qos2-bad-pubcomp.py
 	./02-unsubscribe-qos0.py
 	./02-unsubscribe-qos1.py
 	./02-unsubscribe-qos2.py
@@ -71,6 +76,9 @@ endif
 	./04-retain-qos1-qos0.py
 	./04-retain-qos0-clear.py
 	./04-retain-upgrade-outgoing-qos.py
+	./04-retain-check-source.py
+	./04-retain-check-source-persist.py
+	./04-retain-check-source-persist-diff-port.py
 
 05 :
 	./05-clean-session-qos1.py
@@ -113,6 +121,7 @@ endif
 endif
 
 09 :
+	./09-acl-empty-file.py
 	./09-plugin-auth-unpwd-success.py
 	./09-plugin-auth-unpwd-fail.py
 	./09-plugin-auth-acl-sub.py
@@ -123,6 +132,7 @@ endif
 	./09-plugin-auth-defer-unpwd-fail.py
 	./09-plugin-auth-msg-params.py
 	./09-plugin-auth-context-params.py
+	./09-pwfile-parse-invalid.py
 
 10 :
 	./10-listener-mount-point.py
