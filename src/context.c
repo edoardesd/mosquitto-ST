@@ -97,42 +97,12 @@ struct mosquitto *context__init(struct mosquitto_db *db, mosq_sock_t sock)
 void context__cleanup(struct mosquitto_db *db, struct mosquitto *context, bool do_free)
 {
 	struct mosquitto__packet *packet;
-#ifdef WITH_BRIDGE
-	int i;
-#endif
 
 	if(!context) return;
 
 #ifdef WITH_BRIDGE
 	if(context->bridge){
-		for(i=0; i<db->bridge_count; i++){
-			if(db->bridges[i] == context){
-				db->bridges[i] = NULL;
-			}
-		}
-		mosquitto__free(context->bridge->local_clientid);
-		context->bridge->local_clientid = NULL;
-
-		mosquitto__free(context->bridge->local_username);
-		context->bridge->local_username = NULL;
-
-		mosquitto__free(context->bridge->local_password);
-		context->bridge->local_password = NULL;
-
-		if(context->bridge->remote_clientid != context->id){
-			mosquitto__free(context->bridge->remote_clientid);
-		}
-		context->bridge->remote_clientid = NULL;
-
-		if(context->bridge->remote_username != context->username){
-			mosquitto__free(context->bridge->remote_username);
-		}
-		context->bridge->remote_username = NULL;
-
-		if(context->bridge->remote_password != context->password){
-			mosquitto__free(context->bridge->remote_password);
-		}
-		context->bridge->remote_password = NULL;
+		bridge__cleanup(db, context);
 	}
 #endif
 
@@ -235,11 +205,7 @@ void context__disconnect(struct mosquitto_db *db, struct mosquitto *context)
 	if(context->session_expiry_interval == 0){
 		context__send_will(db, context);
 
-#ifdef WITH_BRIDGE
-		if(!context->bridge)
-#endif
-		{
-
+		if(context->bridge == NULL){
 			if(context->will_delay_interval == 0){
 				/* This will be done later, after the will is published for delay>0. */
 				context__add_to_disused(db, context);

@@ -44,6 +44,10 @@ Contributors:
 #  endif
 #endif
 
+#ifdef WITH_BRIDGE
+#include <poll.h>
+#endif
+
 #include "mosquitto_internal.h"
 #include "mosquitto_broker.h"
 #include "mosquitto_plugin.h"
@@ -664,11 +668,19 @@ void log__internal(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
  * ============================================================ */
 #ifdef WITH_BRIDGE
 int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge);
+void bridge__cleanup(struct mosquitto_db *db, struct mosquitto *context);
 int bridge__connect(struct mosquitto_db *db, struct mosquitto *context);
 int bridge__connect_step1(struct mosquitto_db *db, struct mosquitto *context);
 int bridge__connect_step2(struct mosquitto_db *db, struct mosquitto *context);
 int bridge__connect_step3(struct mosquitto_db *db, struct mosquitto *context);
 void bridge__packet_cleanup(struct mosquitto *context);
+#ifdef WITH_EPOLL
+void bridge_check(struct mosquitto_db *db);
+#else
+void bridge_check(struct mosquitto_db *db, struct pollfd *pollfds, int *pollfd_index);
+#endif
+int bridge__register_local_connections(struct mosquitto_db *db);
+int bridge__remap_topic(struct mosquitto *context, char **topic);
 #endif
 
 /* ============================================================

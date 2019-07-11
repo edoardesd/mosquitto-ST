@@ -54,13 +54,6 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	int topic_alias = -1;
 	uint8_t reason_code = 0;
 
-#ifdef WITH_BRIDGE
-	char *topic_temp;
-	int i;
-	struct mosquitto__bridge_topic *cur_topic;
-	bool match;
-#endif
-
 	if(context->state != mosq_cs_connected){
 		return MOSQ_ERR_PROTOCOL;
 	}
@@ -191,52 +184,9 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 #ifdef WITH_BRIDGE
-	if(context->bridge && context->bridge->topics && context->bridge->topic_remapping){
-		for(i=0; i<context->bridge->topic_count; i++){
-			cur_topic = &context->bridge->topics[i];
-			if((cur_topic->direction == bd_both || cur_topic->direction == bd_in)
-					&& (cur_topic->remote_prefix || cur_topic->local_prefix)){
+	rc = bridge__remap_topic(context, &topic);
+	if(rc) return rc;
 
-				/* Topic mapping required on this topic if the message matches */
-
-				rc = mosquitto_topic_matches_sub(cur_topic->remote_topic, topic, &match);
-				if(rc){
-					mosquitto__free(topic);
-					return rc;
-				}
-				if(match){
-					if(cur_topic->remote_prefix){
-						/* This prefix needs removing. */
-						if(!strncmp(cur_topic->remote_prefix, topic, strlen(cur_topic->remote_prefix))){
-							topic_temp = mosquitto__strdup(topic+strlen(cur_topic->remote_prefix));
-							if(!topic_temp){
-								mosquitto__free(topic);
-								return MOSQ_ERR_NOMEM;
-							}
-							mosquitto__free(topic);
-							topic = topic_temp;
-						}
-					}
-
-					if(cur_topic->local_prefix){
-						/* This prefix needs adding. */
-						len = strlen(topic) + strlen(cur_topic->local_prefix)+1;
-						topic_temp = mosquitto__malloc(len+1);
-						if(!topic_temp){
-							mosquitto__free(topic);
-							return MOSQ_ERR_NOMEM;
-						}
-						snprintf(topic_temp, len, "%s%s", cur_topic->local_prefix, topic);
-						topic_temp[len] = '\0';
-
-						mosquitto__free(topic);
-						topic = topic_temp;
-					}
-					break;
-				}
-			}
-		}
-	}
 #endif
 	if(mosquitto_pub_topic_check(topic) != MOSQ_ERR_SUCCESS){
 		/* Invalid publish topic, just swallow it. */
