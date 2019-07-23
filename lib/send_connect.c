@@ -41,7 +41,7 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	uint8_t version;
 	char *clientid, *username, *password;
 
-	char *custom; 
+	char *custom = NULL; 
 
 	int headerlen;
 	int proplen = 0, will_proplen, varbytes;
@@ -56,7 +56,6 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 
 #if defined(WITH_BROKER) && defined(WITH_BRIDGE)
 	if(mosq->bridge){
-		//log__printf(mosq, MOSQ_LOG_DEBUG, "[CUSTOM] my custum variable is %s", mosq->bridge->custom_message);
 		custom = mosq->bridge->custom_message;
 		clientid = mosq->bridge->remote_clientid;
 		username = mosq->bridge->remote_username;
@@ -101,19 +100,16 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 
 	packet = mosquitto__calloc(1, sizeof(struct mosquitto__packet));
 	if(!packet) return MOSQ_ERR_NOMEM;
-	log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
 
 	if(clientid){
 		payloadlen = 2+strlen(clientid);
-		log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
 	}else{
 		payloadlen = 2;
 	}
 	if(custom){
 		payloadlen += 2+strlen(custom);
-		log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
-
 	}
+
 	if(mosq->will){
 		will = 1;
 		assert(mosq->will->msg.topic);
@@ -125,7 +121,6 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 			payloadlen += will_proplen + varbytes;
 		}
 	}
-	log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
 
 
 	/* After this check we can be sure that the username and password are
@@ -144,7 +139,6 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 		payloadlen += 2+strlen(password);
 	}
 
-	log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
 
 
 	packet->command = CMD_CONNECT;
