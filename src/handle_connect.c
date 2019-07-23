@@ -367,6 +367,11 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 	uint8_t will, will_retain, will_qos, clean_start;
 	uint8_t username_flag, password_flag;
 	char *username = NULL, *password = NULL;
+
+	//add here
+	uint8_t custom_flag;
+	char *custom_message = NULL;
+
 	int rc;
 	int slen;
 	uint16_t slen16;
@@ -495,6 +500,15 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 	password_flag = connect_flags & 0x40;
 	username_flag = connect_flags & 0x80;
 
+	//added
+	custom_flag = connect_flags & 0x30;
+
+	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] custom_flag %d", custom_flag);
+	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] pass flag %d", password_flag);
+	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] user flag %d", username_flag);
+	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] will flag %d", will_retain);
+
+
 	if(will && will_retain && db->config->retain_available == false){
 		if(protocol_version == mosq_p_mqtt5){
 			send__connack(db, context, 0, MQTT_RC_RETAIN_NOT_SUPPORTED, NULL);
@@ -524,6 +538,12 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 		rc = 1;
 		goto handle_connect_error;
 	}
+
+	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] client_id %s and slen %d", client_id, slen);
+
+
+	
+
 
 	if(slen == 0){
 		if(context->protocol == mosq_p_mqtt31){
@@ -587,6 +607,18 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 			}
 		}
 	}
+
+
+
+	//custom message
+	if(custom_flag){
+		if(packet__read_string(&context->in_packet, &custom_message, &slen)){
+			rc = 1;
+			goto handle_connect_error;
+		}
+		//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] custom %s and slen %d", custom_message, slen);
+	}
+
 
 	if(username_flag){
 		rc = packet__read_string(&context->in_packet, &username, &slen);
@@ -828,7 +860,7 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 	context->clean_start = clean_start;
 	context->id = client_id;
 	context->will = will_struct;
-
+	
 	if(context->auth_method){
 		rc = mosquitto_security_auth_start(db, context, false, auth_data, auth_data_len, &auth_data_out, &auth_data_out_len);
 		mosquitto__free(auth_data);

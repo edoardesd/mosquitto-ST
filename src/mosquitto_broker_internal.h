@@ -495,6 +495,9 @@ struct mosquitto__bridge{
 	bool topic_remapping;
 	enum mosquitto__protocol protocol_version;
 	time_t restart_t;
+
+	char *custom_message; //added by me
+
 	char *remote_clientid;
 	char *remote_username;
 	char *remote_password;

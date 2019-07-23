@@ -328,7 +328,7 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 	for(i=0; i<context->bridge->topic_count; i++){
 		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
-			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
+			log__printf(NULL, MOSQ_LOG_DEBUG, "[BRIDGE] Bridge %s doing local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
 			if(sub__add(db,
 						context,
 						context->bridge->topics[i].local_topic,
@@ -402,6 +402,10 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	HASH_ADD(hh_sock, db->contexts_by_sock, sock, sizeof(context->sock), context);
+
+
+	//mod here
+	context->bridge->custom_message = "pagani";
 
 	rc2 = send__connect(context, context->keepalive, context->clean_start, NULL);
 	if(rc2 == MOSQ_ERR_SUCCESS){

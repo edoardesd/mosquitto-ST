@@ -40,6 +40,9 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	int rc;
 	uint8_t version;
 	char *clientid, *username, *password;
+
+	char *custom; 
+
 	int headerlen;
 	int proplen = 0, will_proplen, varbytes;
 	mosquitto_property *local_props = NULL;
@@ -47,10 +50,14 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 
 	assert(mosq);
 
+
+
 	if(mosq->protocol == mosq_p_mqtt31 && !mosq->id) return MOSQ_ERR_PROTOCOL;
 
 #if defined(WITH_BROKER) && defined(WITH_BRIDGE)
 	if(mosq->bridge){
+		//log__printf(mosq, MOSQ_LOG_DEBUG, "[CUSTOM] my custum variable is %s", mosq->bridge->custom_message);
+		custom = mosq->bridge->custom_message;
 		clientid = mosq->bridge->remote_clientid;
 		username = mosq->bridge->remote_username;
 		password = mosq->bridge->remote_password;
@@ -94,11 +101,18 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 
 	packet = mosquitto__calloc(1, sizeof(struct mosquitto__packet));
 	if(!packet) return MOSQ_ERR_NOMEM;
+	log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
 
 	if(clientid){
 		payloadlen = 2+strlen(clientid);
+		log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
 	}else{
 		payloadlen = 2;
+	}
+	if(custom){
+		payloadlen += 2+strlen(custom);
+		log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
+
 	}
 	if(mosq->will){
 		will = 1;
@@ -111,6 +125,8 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 			payloadlen += will_proplen + varbytes;
 		}
 	}
+	log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
+
 
 	/* After this check we can be sure that the username and password are
 	 * always valid for the current protocol, so there is no need to check
@@ -127,6 +143,9 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	if(password){
 		payloadlen += 2+strlen(password);
 	}
+
+	log__printf(NULL, MOSQ_LOG_DEBUG, "payloadlen: %d", payloadlen);
+
 
 	packet->command = CMD_CONNECT;
 	packet->remaining_length = headerlen + payloadlen;
@@ -189,6 +208,10 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	}
 	if(password){
 		packet__write_string(packet, password, strlen(password));
+	}
+
+	if(custom){
+		packet__write_string(packet, custom, strlen(custom));
 	}
 
 	mosq->keepalive = keepalive;
