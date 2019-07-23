@@ -608,15 +608,13 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 		}
 	}
 
-
-
 	//custom message
 	if(custom_flag){
 		if(packet__read_string(&context->in_packet, &custom_message, &slen)){
 			rc = 1;
 			goto handle_connect_error;
 		}
-		//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] custom %s and slen %d", custom_message, slen);
+		log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Received %s from the connect msg", custom_message);
 	}
 
 

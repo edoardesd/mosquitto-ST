@@ -320,6 +320,9 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 		db__messages_delete(db, context);
 	}
 
+	//read available resources
+	context->bridge->custom_message = "test";
+
 	/* Delete all local subscriptions even for clean_start==false. We don't
 	 * remove any messages and the next loop carries out the resubscription
 	 * anyway. This means any unwanted subs will be removed.
@@ -403,9 +406,6 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 	HASH_ADD(hh_sock, db->contexts_by_sock, sock, sizeof(context->sock), context);
 
-
-	//mod here
-	context->bridge->custom_message = "pagani";
 
 	rc2 = send__connect(context, context->keepalive, context->clean_start, NULL);
 	if(rc2 == MOSQ_ERR_SUCCESS){
