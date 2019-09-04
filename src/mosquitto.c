@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
 		rc = 1;
 		return rc;
 	}
-	log__printf(NULL, MOSQ_LOG_INFO, "mosquitto crazy version %s starting", VERSION);
+	log__printf(NULL, MOSQ_LOG_INFO, "mosquitto crazy version XCODE %s starting", VERSION);
 	if(int_db.config_file){
 		log__printf(NULL, MOSQ_LOG_INFO, "Config loaded from %s.", int_db.config_file);
 	}else{
