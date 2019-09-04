@@ -368,7 +368,7 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 	uint8_t username_flag, password_flag;
 	char *username = NULL, *password = NULL;
 
-	//add here
+	//new variable for handling the custom message
 	uint8_t custom_flag;
 	char *custom_message = NULL;
 

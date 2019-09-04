@@ -191,14 +191,19 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 #ifdef WITH_BRIDGE
+
+	log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] Bridging enable ");
 	if(context->bridge && context->bridge->topics && context->bridge->topic_remapping){
+		log__printf(NULL, MOSQ_LOG_INFO, "with topic remapping.");
+
 		for(i=0; i<context->bridge->topic_count; i++){
 			cur_topic = &context->bridge->topics[i];
+			log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGING] Remote topic: %s, topic: %s.", cur_topic->remote_topic, topic);
+
 			if((cur_topic->direction == bd_both || cur_topic->direction == bd_in)
 					&& (cur_topic->remote_prefix || cur_topic->local_prefix)){
 
 				/* Topic mapping required on this topic if the message matches */
-
 				rc = mosquitto_topic_matches_sub(cur_topic->remote_topic, topic, &match);
 				if(rc){
 					mosquitto__free(topic);
@@ -236,6 +241,8 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 				}
 			}
 		}
+	}else{
+		log__printf(NULL, MOSQ_LOG_INFO, "but no topic remapping.");
 	}
 #endif
 	if(mosquitto_pub_topic_check(topic) != MOSQ_ERR_SUCCESS){
@@ -295,6 +302,9 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	log__printf(NULL, MOSQ_LOG_DEBUG, "Received PUBLISH from %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", context->id, dup, qos, retain, mid, topic, (long)payloadlen);
+	
+	//read content of custom msg here (actually at line 285 or above)
+
 	if(qos > 0){
 		db__message_store_find(context, mid, &stored);
 	}
