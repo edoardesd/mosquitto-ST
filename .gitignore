@@ -79,4 +79,12 @@ __pycache__
 *pc
 *.dylib
 CMake*
+
+
 Makefile
+client/Makefile
+lib/Makefile
+lib/cpp/Makefile
+man/Makefile
+src/Makefile
+lib/mem_avail
