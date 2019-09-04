@@ -56,7 +56,9 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 
 #if defined(WITH_BROKER) && defined(WITH_BRIDGE)
 	if(mosq->bridge){
+		//add my msg
 		custom = mosq->bridge->custom_message;
+
 		clientid = mosq->bridge->remote_clientid;
 		username = mosq->bridge->remote_username;
 		password = mosq->bridge->remote_password;
@@ -106,6 +108,7 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	}else{
 		payloadlen = 2;
 	}
+	//increase size if custom msg is present
 	if(custom){
 		payloadlen += 2+strlen(custom);
 	}
@@ -204,6 +207,7 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 		packet__write_string(packet, password, strlen(password));
 	}
 
+	//write the msg in the payload
 	if(custom){
 		packet__write_string(packet, custom, strlen(custom));
 	}
