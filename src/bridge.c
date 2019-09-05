@@ -47,6 +47,12 @@ Contributors:
 static void bridge__backoff_step(struct mosquitto *context);
 static void bridge__backoff_reset(struct mosquitto *context);
 
+char* char__pid(){
+    char * mypid = malloc(6);
+    sprintf(mypid, "%d", getpid());
+    return mypid;
+}
+
 int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 {
 	struct mosquitto *new_context = NULL;
@@ -322,8 +328,9 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	//read available resources
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[NEW] set the custom message");
-	context->bridge->custom_message = "test";
+
+	context->bridge->custom_message = char__pid();
+    log__printf(NULL, MOSQ_LOG_DEBUG, "My pid is %s", context->bridge->custom_message);
     //move up in the bridge_new() function and create a proper function
     
 
