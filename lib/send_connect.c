@@ -58,7 +58,6 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	if(mosq->bridge){
 		//add my msg
 		custom = mosq->bridge->custom_message;
-
 		clientid = mosq->bridge->remote_clientid;
 		username = mosq->bridge->remote_username;
 		password = mosq->bridge->remote_password;

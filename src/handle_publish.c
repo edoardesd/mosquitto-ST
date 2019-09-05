@@ -191,8 +191,6 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 #ifdef WITH_BRIDGE
-
-	log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] Bridging enable ");
 	if(context->bridge && context->bridge->topics && context->bridge->topic_remapping){
 		log__printf(NULL, MOSQ_LOG_INFO, "with topic remapping.");
 
@@ -241,8 +239,6 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 				}
 			}
 		}
-	}else{
-		log__printf(NULL, MOSQ_LOG_INFO, "but no topic remapping.");
 	}
 #endif
 	if(mosquitto_pub_topic_check(topic) != MOSQ_ERR_SUCCESS){
@@ -360,6 +356,7 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 process_bad_message:
 	mosquitto__free(topic);
 	UHPA_FREE(payload, payloadlen);
+    
 	switch(qos){
 		case 0:
 			return MOSQ_ERR_SUCCESS;

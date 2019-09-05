@@ -77,6 +77,7 @@ int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 
 	new_context->username = new_context->bridge->remote_username;
 	new_context->password = new_context->bridge->remote_password;
+    new_context->bridge->custom_message = NULL;
 
 #ifdef WITH_TLS
 	new_context->tls_cafile = new_context->bridge->tls_cafile;
@@ -321,7 +322,10 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	//read available resources
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[NEW] set the custom message");
 	context->bridge->custom_message = "test";
+    //move up in the bridge_new() function and create a proper function
+    
 
 	/* Delete all local subscriptions even for clean_start==false. We don't
 	 * remove any messages and the next loop carries out the resubscription
@@ -331,7 +335,7 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 	for(i=0; i<context->bridge->topic_count; i++){
 		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
-			log__printf(NULL, MOSQ_LOG_DEBUG, "[BRIDGE] Bridge %s doing local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
+			log__printf(NULL, MOSQ_LOG_DEBUG, "[BRIDGE] %s creates a local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
 			if(sub__add(db,
 						context,
 						context->bridge->topics[i].local_topic,

@@ -502,12 +502,7 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 	//added
 	custom_flag = connect_flags & 0x30;
-
-	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] custom_flag %d", custom_flag);
-	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] pass flag %d", password_flag);
-	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] user flag %d", username_flag);
-	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] will flag %d", will_retain);
-
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[NEW] find the custom flag custom_flag %d", custom_flag);
 
 	if(will && will_retain && db->config->retain_available == false){
 		if(protocol_version == mosq_p_mqtt5){
@@ -538,12 +533,6 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 		rc = 1;
 		goto handle_connect_error;
 	}
-
-	//log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] client_id %s and slen %d", client_id, slen);
-
-
-	
-
 
 	if(slen == 0){
 		if(context->protocol == mosq_p_mqtt31){
@@ -614,7 +603,7 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 			rc = 1;
 			goto handle_connect_error;
 		}
-		log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Received %s from the connect msg", custom_message);
+		log__printf(NULL, MOSQ_LOG_DEBUG, "[NEW] Received %s from the connect msg", custom_message);
 	}
 
 
