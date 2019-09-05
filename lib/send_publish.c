@@ -69,15 +69,20 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 		}
 	}
 #ifdef WITH_BRIDGE
-    if(mosq->bridge->custom_message){
-        log__printf(NULL, MOSQ_LOG_DEBUG, "[D] the custom msg is %s", mosq->bridge->custom_message);
-        
-        if(strcmp(mosq->bridge->custom_message, "test") == 0){
-            log__printf(NULL, MOSQ_LOG_DEBUG, "[D] no msg to be sent");
-        }
-        return 0;
+    //check whether a custom message is present or not
+    if(mosq->bridge){
+        if(mosq->bridge->custom_message){
+            if(strcmp(mosq->bridge->custom_message, "test") == 0){
+                log__printf(NULL, MOSQ_LOG_DEBUG, "[FORWARD] no msg to be sent");
+                return MOSQ_ERR_SUCCESS; //send a fake success
+            }
+            else{
+                log__printf(NULL, MOSQ_LOG_DEBUG, "[FORWARD] pub the message correctly");
+            }
 
+        }
     }
+    
 	if(mosq->bridge && mosq->bridge->topics && mosq->bridge->topic_remapping){
         for(i=0; i<mosq->bridge->topic_count; i++){
 			cur_topic = &mosq->bridge->topics[i];
@@ -120,7 +125,6 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 					log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 1 to %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, mapped_topic, (long)payloadlen);
 					G_PUB_BYTES_SENT_INC(payloadlen);
 					rc =  send__real_publish(mosq, mid, mapped_topic, payloadlen, payload, qos, retain, dup, cmsg_props, store_props, expiry_interval);
-					log__printf(NULL, MOSQ_LOG_DEBUG, "[PUBLISH] checking rc value %d", rc);
 					mosquitto__free(mapped_topic);
 					return rc;
 				}
