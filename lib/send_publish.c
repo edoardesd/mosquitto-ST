@@ -72,7 +72,7 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
     //check whether a custom message is present or not
     if(mosq->bridge){
         if(mosq->bridge->custom_message){
-            if(strcmp(mosq->bridge->custom_message, "test") == 0){
+            if(strcmp(mosq->bridge->custom_message, "test") == 0){ //if they are equal
                 log__printf(NULL, MOSQ_LOG_DEBUG, "[FORWARD] no msg to be sent");
                 return MOSQ_ERR_SUCCESS; //send a fake success
             }
@@ -132,7 +132,7 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 		}
 	}
 #endif
-	log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 2 to %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, topic, (long)payloadlen);
+	log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 2 to %s (name%s, remote%d, port%d", mosq->id, mosq->bridge->name, (int) strtol(mosq->bridge->remote_clientid, (char **)NULL, 10), mosq->bridge->addresses->port);
 	G_PUB_BYTES_SENT_INC(payloadlen);
 #else
 	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending PUBLISH (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, topic, (long)payloadlen);
