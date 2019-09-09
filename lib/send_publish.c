@@ -132,8 +132,19 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 		}
 	}
 #endif
-	log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 2 to %s (name%s, remote%d, port%d", mosq->id, mosq->bridge->name, (int) strtol(mosq->bridge->remote_clientid, (char **)NULL, 10), mosq->bridge->addresses->port);
-	G_PUB_BYTES_SENT_INC(payloadlen);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 2 to %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, topic, (long)payloadlen);
+    //extra info
+    if(mosq->bridge){
+        log__printf(NULL, MOSQ_LOG_DEBUG, "Name: %s", mosq->bridge->name);
+        if(mosq->bridge->remote_clientid){
+            log__printf(NULL, MOSQ_LOG_DEBUG, "Local port: %d", (int) strtol(mosq->bridge->remote_clientid, (char **)NULL, 10));
+        }
+        if(mosq->bridge->addresses){
+            log__printf(NULL, MOSQ_LOG_DEBUG, "Remote port: %d", mosq->bridge->addresses->port);
+        }
+    }
+    
+   	G_PUB_BYTES_SENT_INC(payloadlen);
 #else
 	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending PUBLISH (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, topic, (long)payloadlen);
 #endif
