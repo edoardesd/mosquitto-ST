@@ -955,6 +955,8 @@ int db__message_write(struct mosquitto_db *db, struct mosquitto *context)
 	mosquitto_property *cmsg_props = NULL, *store_props = NULL;
 	time_t now = 0;
 	uint32_t expiry_interval;
+    
+    char *src_id = NULL;
 
 	if(!context || context->sock == INVALID_SOCKET
 			|| (context->state == mosq_cs_connected && !context->id)){
@@ -989,8 +991,8 @@ int db__message_write(struct mosquitto_db *db, struct mosquitto *context)
 		payload = UHPA_ACCESS_PAYLOAD(tail->store);
 		cmsg_props = tail->properties;
 		store_props = tail->store->properties;
-
-		switch(tail->state){
+        
+        switch(tail->state){
 			case mosq_ms_send_pubrec:
 				rc = send__pubrec(context, mid, 0);
 				if(!rc){
@@ -1047,10 +1049,12 @@ int db__message_write(struct mosquitto_db *db, struct mosquitto *context)
 		payload = UHPA_ACCESS_PAYLOAD(tail->store);
 		cmsg_props = tail->properties;
 		store_props = tail->store->properties;
+        src_id = tail->store->source_id;
+        
 
 		switch(tail->state){
 			case mosq_ms_publish_qos0:
-				rc = send__publish(context, mid, topic, payloadlen, payload, qos, retain, retries, cmsg_props, store_props, expiry_interval);
+				rc = send__publish(context, mid, topic, payloadlen, payload, qos, retain, retries, cmsg_props, store_props, expiry_interval, src_id);
 				if(rc == MOSQ_ERR_SUCCESS || rc == MOSQ_ERR_OVERSIZE_PACKET){
 					db__message_remove(db, &context->msgs_out, tail);
 				}else{
@@ -1059,7 +1063,8 @@ int db__message_write(struct mosquitto_db *db, struct mosquitto *context)
 				break;
 
 			case mosq_ms_publish_qos1:
-				rc = send__publish(context, mid, topic, payloadlen, payload, qos, retain, retries, cmsg_props, store_props, expiry_interval);
+                log__printf(NULL, MOSQ_LOG_DEBUG, "[MSG] send msg qos1");
+				rc = send__publish(context, mid, topic, payloadlen, payload, qos, retain, retries, cmsg_props, store_props, expiry_interval, src_id);
 				if(rc == MOSQ_ERR_SUCCESS){
 					tail->timestamp = mosquitto_time();
 					tail->dup = 1; /* Any retry attempts are a duplicate. */
@@ -1072,7 +1077,8 @@ int db__message_write(struct mosquitto_db *db, struct mosquitto *context)
 				break;
 
 			case mosq_ms_publish_qos2:
-				rc = send__publish(context, mid, topic, payloadlen, payload, qos, retain, retries, cmsg_props, store_props, expiry_interval);
+                log__printf(NULL, MOSQ_LOG_DEBUG, "[MSG] send msg qos2");
+				rc = send__publish(context, mid, topic, payloadlen, payload, qos, retain, retries, cmsg_props, store_props, expiry_interval, src_id);
 				if(rc == MOSQ_ERR_SUCCESS){
 					tail->timestamp = mosquitto_time();
 					tail->dup = 1; /* Any retry attempts are a duplicate. */

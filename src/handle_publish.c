@@ -299,8 +299,6 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 
 	log__printf(NULL, MOSQ_LOG_DEBUG, "Received PUBLISH from %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", context->id, dup, qos, retain, mid, topic, (long)payloadlen);
 	
-	//read content of custom msg here (actually at line 285 or above)
-
 	if(qos > 0){
 		db__message_store_find(context, mid, &stored);
 	}

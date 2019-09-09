@@ -37,7 +37,7 @@ Contributors:
 #include "send_mosq.h"
 
 
-int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint32_t payloadlen, const void *payload, int qos, bool retain, bool dup, const mosquitto_property *cmsg_props, const mosquitto_property *store_props, uint32_t expiry_interval)
+int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint32_t payloadlen, const void *payload, int qos, bool retain, bool dup, const mosquitto_property *cmsg_props, const mosquitto_property *store_props, uint32_t expiry_interval, char *source_id)
 {
 #ifdef WITH_BROKER
 	size_t len;
@@ -48,6 +48,9 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 	int rc;
 	char *mapped_topic = NULL;
 	char *topic_temp = NULL;
+    int local_port = 0;
+    int remote_port = 0;
+    int src_id;
 #endif
 #endif
 	assert(mosq);
@@ -131,18 +134,33 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 			}
 		}
 	}
-#endif
-    log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 2 to %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, topic, (long)payloadlen);
-    //extra info
+    
+    //checking ports state
     if(mosq->bridge){
-        log__printf(NULL, MOSQ_LOG_DEBUG, "Name: %s", mosq->bridge->name);
         if(mosq->bridge->remote_clientid){
-            log__printf(NULL, MOSQ_LOG_DEBUG, "Local port: %d", (int) strtol(mosq->bridge->remote_clientid, (char **)NULL, 10));
+            local_port = (int) strtol(mosq->bridge->remote_clientid, (char **)NULL, 10);
         }
         if(mosq->bridge->addresses){
-            log__printf(NULL, MOSQ_LOG_DEBUG, "Remote port: %d", mosq->bridge->addresses->port);
+            remote_port = mosq->bridge->addresses->port;
         }
+        src_id = (int) strtol(source_id, (char **)NULL, 10);
+        
+        //TODO: add debug
+        
+        if(remote_port == src_id){
+            log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] Remote and local ports are equals, DON'T forward packets");
+            return MOSQ_ERR_SUCCESS;
+        }
+        else{
+            log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] Publish allowed");
+        }
+        
     }
+#endif
+    log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 2 to %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, topic, (long)payloadlen);
+    
+    
+    
     
    	G_PUB_BYTES_SENT_INC(payloadlen);
 #else
