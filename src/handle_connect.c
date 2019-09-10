@@ -600,7 +600,7 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 			rc = 1;
 			goto handle_connect_error;
 		}
-		log__printf(NULL, MOSQ_LOG_DEBUG, "[NEW] Received %s from the connect msg", custom_message);
+		//log__printf(NULL, MOSQ_LOG_DEBUG, "[NEW] Received %s from the connect msg", custom_message);
 	}
 
 

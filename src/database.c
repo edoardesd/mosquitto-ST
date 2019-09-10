@@ -1049,8 +1049,9 @@ int db__message_write(struct mosquitto_db *db, struct mosquitto *context)
 		payload = UHPA_ACCESS_PAYLOAD(tail->store);
 		cmsg_props = tail->properties;
 		store_props = tail->store->properties;
-        src_id = tail->store->source_id;
         
+        /* Source_id is 0 when the publish comes from a local client. */
+        src_id = tail->store->source_id;
 
 		switch(tail->state){
 			case mosq_ms_publish_qos0:

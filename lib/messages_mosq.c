@@ -199,7 +199,7 @@ int message__release_to_inflight(struct mosquitto *mosq, enum mosquitto_msg_dire
 					}else if(cur->msg.qos == 2){
 						cur->state = mosq_ms_wait_for_pubrec;
 					}
-					rc = send__publish(mosq, cur->msg.mid, cur->msg.topic, cur->msg.payloadlen, cur->msg.payload, cur->msg.qos, cur->msg.retain, cur->dup, NULL, NULL, 0);
+					rc = send__publish(mosq, cur->msg.mid, cur->msg.topic, cur->msg.payloadlen, cur->msg.payload, cur->msg.qos, cur->msg.retain, cur->dup, NULL, NULL, 0, NULL);
 					if(rc){
 						return rc;
 					}
@@ -286,7 +286,7 @@ void message__retry_check(struct mosquitto *mosq)
 			case mosq_ms_publish_qos2:
 				msg->timestamp = now;
 				msg->dup = true;
-				send__publish(mosq, msg->msg.mid, msg->msg.topic, msg->msg.payloadlen, msg->msg.payload, msg->msg.qos, msg->msg.retain, msg->dup, NULL, NULL, 0);
+				send__publish(mosq, msg->msg.mid, msg->msg.topic, msg->msg.payloadlen, msg->msg.payload, msg->msg.qos, msg->msg.retain, msg->dup, NULL, NULL, 0, NULL);
 				break;
 			case mosq_ms_wait_for_pubrel:
 				msg->timestamp = now;

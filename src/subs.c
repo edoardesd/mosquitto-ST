@@ -796,10 +796,6 @@ int sub__messages_queue(struct mosquitto_db *db, const char *source_id, const ch
 
 	assert(db);
 	assert(topic);
-
-    if(strlen(source_id) > 0){
-        log__printf(NULL, MOSQ_LOG_DEBUG, "[DB] source id: %s", source_id);
-    }
     
 	if(sub__topic_tokenise(topic, &tokens)) return 1;
 

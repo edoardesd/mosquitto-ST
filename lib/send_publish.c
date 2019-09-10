@@ -48,9 +48,9 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 	int rc;
 	char *mapped_topic = NULL;
 	char *topic_temp = NULL;
-    int local_port = 0;
-    int remote_port = 0;
-    int src_id;
+    int remote_client_id = 0;
+    int address_port = 0;
+    int src_id = (int) strtol(source_id, (char **)NULL, 10);
 #endif
 #endif
 	assert(mosq);
@@ -80,7 +80,7 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
                 return MOSQ_ERR_SUCCESS; //send a fake success
             }
             else{
-                log__printf(NULL, MOSQ_LOG_DEBUG, "[FORWARD] pub the message correctly");
+                //log__printf(NULL, MOSQ_LOG_DEBUG, "[FORWARD] pub the message correctly");
             }
 
         }
@@ -138,21 +138,18 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
     //checking ports state
     if(mosq->bridge){
         if(mosq->bridge->remote_clientid){
-            local_port = (int) strtol(mosq->bridge->remote_clientid, (char **)NULL, 10);
+            remote_client_id = (int) strtol(mosq->bridge->remote_clientid, (char **)NULL, 10);
         }
         if(mosq->bridge->addresses){
-            remote_port = mosq->bridge->addresses->port;
+            address_port = mosq->bridge->addresses->port;
         }
-        src_id = (int) strtol(source_id, (char **)NULL, 10);
         
-        //TODO: add debug
-        
-        if(remote_port == src_id){
-            log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] Remote and local ports are equals, DON'T forward packets");
+        if(address_port == src_id){
+            log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] fwd_port(%d) == src_id (%d) --> DON'T forward packets", address_port, src_id);
             return MOSQ_ERR_SUCCESS;
         }
         else{
-            log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] Publish allowed");
+            log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] fwd_port(%d) != src_id (%d) --> PUBLISH allowed", address_port, src_id);
         }
         
     }

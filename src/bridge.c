@@ -328,11 +328,10 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	//read available resources
-
 	context->bridge->custom_message = char__pid();
-    log__printf(NULL, MOSQ_LOG_DEBUG, "My pid is %s", context->bridge->custom_message);
-    //move up in the bridge_new() function and create a proper function
-    
+    //log__printf(NULL, MOSQ_LOG_DEBUG, "My pid is %s", context->bridge->custom_message);
+    /* Move up in the bridge_new() function and create a proper function.
+    */
 
 	/* Delete all local subscriptions even for clean_start==false. We don't
 	 * remove any messages and the next loop carries out the resubscription
