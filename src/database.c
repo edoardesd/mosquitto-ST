@@ -108,7 +108,7 @@ static bool db__ready_for_queue(struct mosquitto *context, int qos, struct mosqu
 }
 
 
-int db__open(struct mosquitto__config *config, struct mosquitto_db *db)
+int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
 {
 	struct mosquitto__subhier *subhier;
 
@@ -122,7 +122,12 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db)
 #ifdef WITH_BRIDGE
 	db->bridges = NULL;
 	db->bridge_count = 0;
-#endif
+    /* INIT Spanning Tree Protocol params */
+    db->stp.broker_id = config->default_listener.port;
+    db->stp.root_distance = 0;
+    db->stp.root_id = config->default_listener.port;;
+    db->stp.res.pid = pid;
+    #endif
 
 	// Initialize the hashtable
 	db->clientid_index_hash = NULL;

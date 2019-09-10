@@ -204,6 +204,7 @@ int main(int argc, char *argv[])
 	struct mosquitto__config config;
 	int i, j;
 	FILE *pid;
+    int process_pid;
 	int rc;
 #ifdef WIN32
 	SYSTEMTIME st;
@@ -252,11 +253,14 @@ int main(int argc, char *argv[])
 	if(config.daemon){
 		mosquitto__daemonise();
 	}
-
-	if(config.daemon && config.pid_file){
-		pid = mosquitto__fopen(config.pid_file, "wt", false);
+    
+    
+    process_pid = getpid();
+    if(config.daemon && config.pid_file){
+        pid = mosquitto__fopen(config.pid_file, "wt", false);
 		if(pid){
-			fprintf(pid, "%d", getpid());
+            log__printf(NULL, MOSQ_LOG_INFO, "pid file?");
+			fprintf(pid, "%d", process_pid);
 			fclose(pid);
 		}else{
 			log__printf(NULL, MOSQ_LOG_ERR, "Error: Unable to write pid file.");
@@ -264,7 +268,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	rc = db__open(&config, &int_db);
+	rc = db__open(&config, &int_db, process_pid);
 	if(rc != MOSQ_ERR_SUCCESS){
 		log__printf(NULL, MOSQ_LOG_ERR, "Error: Couldn't open database.");
 		return rc;
@@ -276,7 +280,7 @@ int main(int argc, char *argv[])
 		rc = 1;
 		return rc;
 	}
-	log__printf(NULL, MOSQ_LOG_INFO, "mosquitto crazy version XCODE %s starting", VERSION);
+	log__printf(NULL, MOSQ_LOG_INFO, "mosquitto crazy version XCODE %s starting with PID %d", VERSION, process_pid);
 	if(int_db.config_file){
 		log__printf(NULL, MOSQ_LOG_INFO, "Config loaded from %s.", int_db.config_file);
 	}else{
@@ -357,6 +361,8 @@ int main(int argc, char *argv[])
 					config.bridges[i].name);
 		}
 	}
+    
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[STP] Stored pid %d, port: %d", int_db.stp.res.pid, int_db.stp.broker_id);
 #endif
 
 #ifdef WITH_SYSTEMD
