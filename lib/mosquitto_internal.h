@@ -148,6 +148,17 @@ struct session_expiry_list {
 	struct session_expiry_list *next;
 };
 
+struct resources{
+    int pid;
+};
+
+struct mosquitto__stp{
+    int broker_id;
+    int root_id;
+    int root_distance;
+    struct resources res;
+};
+
 struct mosquitto__packet{
 	uint8_t *payload;
 	struct mosquitto__packet *next;
@@ -159,6 +170,7 @@ struct mosquitto__packet{
 	uint16_t mid;
 	uint8_t command;
 	int8_t remaining_count;
+    struct mosquitto__stp *bpdu;
 };
 
 struct mosquitto_message_all{

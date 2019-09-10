@@ -415,17 +415,6 @@ struct mosquitto__acl_user{
 	struct mosquitto__acl *acl;
 };
 
-struct resources{
-    int pid;
-};
-
-struct mosquitto__stp{
-    int broker_id;
-    int root_id;
-    int root_distance;
-    struct resources res;
-};
-
 struct mosquitto_db{
 	dbid_t last_db_id;
 	struct mosquitto__subhier *subs;
