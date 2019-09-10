@@ -415,6 +415,17 @@ struct mosquitto__acl_user{
 	struct mosquitto__acl *acl;
 };
 
+struct resources{
+    int pid;
+};
+
+struct mosquitto__stp{
+    int broker_id;
+    int root_id;
+    int root_distance;
+    struct resources res;
+};
+
 struct mosquitto_db{
 	dbid_t last_db_id;
 	struct mosquitto__subhier *subs;
@@ -425,6 +436,7 @@ struct mosquitto_db{
 	struct mosquitto *contexts_for_free;
 #ifdef WITH_BRIDGE
 	struct mosquitto **bridges;
+    struct mosquitto__stp stp;
 #endif
 	struct clientid__index_hash *clientid_index_hash;
 	struct mosquitto_msg_store *msg_store;
@@ -601,7 +613,7 @@ int handle__auth(struct mosquitto_db *db, struct mosquitto *context);
 /* ============================================================
  * Database handling
  * ============================================================ */
-int db__open(struct mosquitto__config *config, struct mosquitto_db *db);
+int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid);
 int db__close(struct mosquitto_db *db);
 #ifdef WITH_PERSISTENCE
 int persist__backup(struct mosquitto_db *db, bool shutdown);
