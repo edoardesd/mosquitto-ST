@@ -35,4 +35,7 @@ int send__pubrel(struct mosquitto *mosq, uint16_t mid);
 int send__subscribe(struct mosquitto *mosq, int *mid, int topic_count, char *const *const topic, int topic_qos, const mosquitto_property *properties);
 int send__unsubscribe(struct mosquitto *mosq, int *mid, int topic_count, char *const *const topic, const mosquitto_property *properties);
 
+
+int send__complex_command(struct mosquitto *mosq, uint8_t command);
+
 #endif

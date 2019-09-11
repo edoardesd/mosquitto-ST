@@ -48,7 +48,12 @@ int send__pingreq(struct mosquitto *mosq)
 #else
 	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending PINGREQ", mosq->id);
 #endif
-	rc = send__simple_command(mosq, CMD_PINGREQ);
+    
+#ifdef WITH_BROKER
+    rc = send__complex_command(mosq, CMD_PINGREQ);
+#else
+    rc = send__simple_command(mosq, CMD_PINGREQ);
+#endif
 	if(rc == MOSQ_ERR_SUCCESS){
 		mosq->ping_t = mosquitto_time();
 	}
@@ -185,4 +190,115 @@ int send__simple_command(struct mosquitto *mosq, uint8_t command)
 
 	return packet__queue(mosq, packet);
 }
+
+/* For custom PINGREQ */
+int send__complex_command(struct mosquitto *mosq, uint8_t command)
+{
+    struct mosquitto__packet *packet = NULL;
+    int payloadlen;
+    uint8_t byte;
+    int rc;
+    uint8_t version;
+    char *clientid, *username;
+    
+    int headerlen;
+    int proplen = 0, varbytes;
+    mosquitto_property *local_props = NULL;
+    uint16_t receive_maximum;
+    
+    assert(mosq);
+    
+    clientid = "";
+    username = "";
+    
+    if(mosq->protocol == mosq_p_mqtt5){
+        /* Generate properties from options */
+        if(!mosquitto_property_read_int16(NULL, MQTT_PROP_RECEIVE_MAXIMUM, &receive_maximum, false)){
+            rc = mosquitto_property_add_int16(&local_props, MQTT_PROP_RECEIVE_MAXIMUM, mosq->msgs_in.inflight_maximum);
+            if(rc) return rc;
+        }else{
+            mosq->msgs_in.inflight_maximum = receive_maximum;
+            mosq->msgs_in.inflight_quota = receive_maximum;
+        }
+        
+        version = MQTT_PROTOCOL_V5;
+        headerlen = 10;
+        proplen = 0;
+        proplen += property__get_length_all(NULL);
+        proplen += property__get_length_all(local_props);
+        varbytes = packet__varint_bytes(proplen);
+        headerlen += proplen + varbytes;
+    }else if(mosq->protocol == mosq_p_mqtt311){
+        version = MQTT_PROTOCOL_V311;
+        headerlen = 10;
+    }else if(mosq->protocol == mosq_p_mqtt31){
+        version = MQTT_PROTOCOL_V31;
+        headerlen = 12;
+    }else{
+        return MOSQ_ERR_INVAL;
+    }
+    
+    packet = mosquitto__calloc(1, sizeof(struct mosquitto__packet));
+    if(!packet) return MOSQ_ERR_NOMEM;
+    
+    /* Set payload length */
+    if(clientid){
+        payloadlen = 2+strlen(clientid);
+    }else{
+        payloadlen = 2;
+    }
+    
+    if(username){
+        payloadlen += 2+strlen(username);
+    }
+    
+    packet->command = command;
+    packet->remaining_length = headerlen + payloadlen;
+    
+    /* Memory allocation */
+    rc = packet__alloc(packet);
+    if(rc){
+        mosquitto__free(packet);
+        return rc;
+    }
+    
+    /* Variable header */
+    if(version == MQTT_PROTOCOL_V31){
+        packet__write_string(packet, PROTOCOL_NAME_v31, strlen(PROTOCOL_NAME_v31));
+    }else{
+        packet__write_string(packet, PROTOCOL_NAME, strlen(PROTOCOL_NAME));
+    }
+    
+    /* Check better */
+    byte = (1&0x1)<<1; //different (clean_session&0x1)<<1;
+    
+    if(username){
+        byte = byte | 0x1<<2;
+    }
+    
+    packet__write_byte(packet, byte);
+    packet__write_uint16(packet, 6); //6 is keepalive
+    
+    if(mosq->protocol == mosq_p_mqtt5){
+        /* Write properties */
+        packet__write_varint(packet, proplen);
+        property__write_all(packet, NULL, false);
+        property__write_all(packet, local_props, false);
+    }
+    
+    /* Payload */
+    if(clientid){
+        packet__write_string(packet, clientid, strlen(clientid));
+    }else{
+        packet__write_uint16(packet, 0);
+    }
+    
+    if(username){
+        packet__write_string(packet, username, strlen(username));
+    }
+    
+    log__printf(mosq, MOSQ_LOG_DEBUG, "Sending COMPLEX PING");
+    return packet__queue(mosq, packet);
+}
+
 
