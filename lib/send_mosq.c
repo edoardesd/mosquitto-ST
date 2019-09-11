@@ -39,7 +39,12 @@ Contributors:
 #include "time_mosq.h"
 #include "util_mosq.h"
 
+
+#ifdef WITH_BROKER
+int send__pingreq(struct mosquitto_db *db, struct mosquitto *mosq)
+#else
 int send__pingreq(struct mosquitto *mosq)
+#endif
 {
 	int rc;
 	assert(mosq);
@@ -50,7 +55,7 @@ int send__pingreq(struct mosquitto *mosq)
 #endif
     
 #ifdef WITH_BROKER
-    rc = send__complex_command(mosq, CMD_PINGREQ);
+    rc = send__complex_command(db, mosq, CMD_PINGREQ);
 #else
     rc = send__simple_command(mosq, CMD_PINGREQ);
 #endif
@@ -192,14 +197,16 @@ int send__simple_command(struct mosquitto *mosq, uint8_t command)
 }
 
 /* For custom PINGREQ */
-int send__complex_command(struct mosquitto *mosq, uint8_t command)
+#ifdef WITH_BROKER
+int send__complex_command(struct mosquitto_db *db, struct mosquitto *mosq, uint8_t command)
 {
     struct mosquitto__packet *packet = NULL;
     int payloadlen;
     uint8_t byte;
     int rc;
     uint8_t version;
-    char *clientid, *username;
+    char *broker_id, *root_dist, *root_id;
+    int res_pid;
     
     int headerlen;
     int proplen = 0, varbytes;
@@ -208,8 +215,11 @@ int send__complex_command(struct mosquitto *mosq, uint8_t command)
     
     assert(mosq);
     
-    clientid = "";
-    username = "";
+    broker_id = "";//db->stp.broker_id;
+    root_dist = ""; //(char *) db->stp.root_distance;
+    root_id = ""; //(char*) db->stp.root_id;
+    
+    res_pid = db->stp.res.pid;
     
     if(mosq->protocol == mosq_p_mqtt5){
         /* Generate properties from options */
@@ -242,14 +252,14 @@ int send__complex_command(struct mosquitto *mosq, uint8_t command)
     if(!packet) return MOSQ_ERR_NOMEM;
     
     /* Set payload length */
-    if(clientid){
-        payloadlen = 2+strlen(clientid);
+    if(broker_id){
+        payloadlen = 2+strlen(broker_id);
     }else{
         payloadlen = 2;
     }
     
-    if(username){
-        payloadlen += 2+strlen(username);
+    if(root_dist){
+        payloadlen += 2+strlen(root_dist);
     }
     
     packet->command = command;
@@ -272,7 +282,7 @@ int send__complex_command(struct mosquitto *mosq, uint8_t command)
     /* Check better */
     byte = (1&0x1)<<1; //different (clean_session&0x1)<<1;
     
-    if(username){
+    if(root_dist){
         byte = byte | 0x1<<2;
     }
     
@@ -287,18 +297,18 @@ int send__complex_command(struct mosquitto *mosq, uint8_t command)
     }
     
     /* Payload */
-    if(clientid){
-        packet__write_string(packet, clientid, strlen(clientid));
+    if(broker_id){
+        packet__write_string(packet, broker_id, strlen(broker_id));
     }else{
         packet__write_uint16(packet, 0);
     }
     
-    if(username){
-        packet__write_string(packet, username, strlen(username));
+    if(root_dist){
+        packet__write_string(packet, root_dist, strlen(root_dist));
     }
     
     log__printf(mosq, MOSQ_LOG_DEBUG, "Sending COMPLEX PING");
     return packet__queue(mosq, packet);
 }
-
+#endif
 

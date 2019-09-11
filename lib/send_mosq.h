@@ -25,7 +25,6 @@ int send__real_publish(struct mosquitto *mosq, uint16_t mid, const char *topic, 
 
 int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session, const mosquitto_property *properties);
 int send__disconnect(struct mosquitto *mosq, uint8_t reason_code, const mosquitto_property *properties);
-int send__pingreq(struct mosquitto *mosq);
 int send__pingresp(struct mosquitto *mosq);
 int send__puback(struct mosquitto *mosq, uint16_t mid, uint8_t reason_code);
 int send__pubcomp(struct mosquitto *mosq, uint16_t mid);
@@ -35,7 +34,11 @@ int send__pubrel(struct mosquitto *mosq, uint16_t mid);
 int send__subscribe(struct mosquitto *mosq, int *mid, int topic_count, char *const *const topic, int topic_qos, const mosquitto_property *properties);
 int send__unsubscribe(struct mosquitto *mosq, int *mid, int topic_count, char *const *const topic, const mosquitto_property *properties);
 
-
-int send__complex_command(struct mosquitto *mosq, uint8_t command);
+#ifdef WITH_BROKER
+int send__pingreq(struct mosquitto_db *db, struct mosquitto *mosq);
+int send__complex_command(struct mosquitto_db *db, struct mosquitto *mosq, uint8_t command);
+#else
+int send__pingreq(struct mosquitto *mosq);
+#endif
 
 #endif
