@@ -36,7 +36,11 @@ int handle__packet(struct mosquitto_db *db, struct mosquitto *context)
 
 	switch((context->in_packet.command)&0xF0){
 		case CMD_PINGREQ:
-			return handle__pingreq(context);
+#ifdef WITH_BROKER
+			return handle__pingreqcomp(db, context);
+#else
+            return handle__pingreq(context);
+#endif
 		case CMD_PINGRESP:
 			return handle__pingresp(context);
 		case CMD_PUBACK:

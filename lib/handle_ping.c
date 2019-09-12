@@ -68,3 +68,149 @@ int handle__pingresp(struct mosquitto *mosq)
 	return MOSQ_ERR_SUCCESS;
 }
 
+int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
+{
+    char protocol_name[7];
+    mosquitto_property *properties = NULL;
+    uint8_t protocol_version;
+    uint8_t connect_flags;
+    int rc = 0;
+    int slen;
+    uint16_t slen16;
+    uint16_t keepalive = 0;
+    char *src_address, *src_port, *src_id;
+    char *root_address, *root_port, *root_id;
+    char *root_distance;
+    char *src_pid;
+    
+    assert(mosq);
+    
+    if(mosq->state != mosq_cs_connected){
+        return MOSQ_ERR_PROTOCOL;
+    }
+    
+    if(packet__read_uint16(&mosq->in_packet, &slen16)){
+        rc = 1;
+    }
+    slen = slen16;
+    
+    if(slen != 4 /* MQTT */ && slen != 6 /* MQIsdp */){
+        if(rc){
+            log__printf(NULL, MOSQ_LOG_DEBUG, "Received PINGREQ from client %s", mosq->id);
+            rc = MOSQ_ERR_PROTOCOL;
+        
+            return send__pingresp(mosq);
+        }
+    }else{
+        /* Now we are sure that the request is from a bridged broker */
+        log__printf(NULL, MOSQ_LOG_DEBUG, "Received complex PINGREQ from %s", mosq->id);
+    }
+    
+    
+    if(packet__read_bytes(&mosq->in_packet, protocol_name, slen)){
+        rc = MOSQ_ERR_PROTOCOL;
+        goto handle_connect_error;
+    }
+    protocol_name[slen] = '\0';
+    
+    if(packet__read_byte(&mosq->in_packet, &protocol_version)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    
+    //TODO check protocols routine
+    if((mosq->in_packet.command&0x0F) != 0x00){
+        log__printf(NULL, MOSQ_LOG_DEBUG, "Reserved flags not set to 0, must disconnect.");
+        rc = MOSQ_ERR_PROTOCOL;
+        goto handle_connect_error;
+    }
+    
+    if(packet__read_byte(&mosq->in_packet, &connect_flags)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    
+    if(mosq->protocol == mosq_p_mqtt311 || mosq->protocol == mosq_p_mqtt5){
+        if((connect_flags & 0x01) != 0x00){
+            rc = MOSQ_ERR_PROTOCOL;
+            goto handle_connect_error;
+        }
+    }
+    
+    if(packet__read_uint16(&mosq->in_packet, &keepalive)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    if(protocol_version == PROTOCOL_VERSION_v5){
+        rc = property__read_all(CMD_CONNECT, &mosq->in_packet, &properties);
+        if(rc) {
+            log__printf(NULL, MOSQ_LOG_ERR, "Error properties");
+            goto handle_connect_error;
+        }
+    }
+    
+    /* Source properties */
+    if(packet__read_string(&mosq->in_packet, &src_address, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    if(packet__read_string(&mosq->in_packet, &src_port, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    if(packet__read_string(&mosq->in_packet, &src_id, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    
+    /* Root properties */
+    if(packet__read_string(&mosq->in_packet, &root_address, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    if(packet__read_string(&mosq->in_packet, &root_port, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    if(packet__read_string(&mosq->in_packet, &root_id, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    
+    /* Other */
+    if(packet__read_string(&mosq->in_packet, &root_distance, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    if(packet__read_string(&mosq->in_packet, &src_pid, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
+    
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_address: %s, source_port: %s, source_id: %s", src_address, src_port, src_id);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Root_address: %s, root_port: %s, root_id: %s", root_address, root_port, root_id);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_pid: %s, root_distance: %s", src_pid, root_distance);
+
+    return send__pingresp(mosq);
+    
+    
+//TODO handle connect herror
+handle_connect_error:
+    /*
+    mosquitto__free(auth_data);
+    mosquitto__free(client_id);
+    mosquitto__free(username);
+    mosquitto__free(password);
+    if(will_struct){
+        mosquitto_property_free_all(&will_struct->properties);
+        mosquitto__free(will_struct->msg.payload);
+        mosquitto__free(will_struct->msg.topic);
+        mosquitto__free(will_struct);
+    }
+    */
+#ifdef WITH_TLS
+    if(client_cert) X509_free(client_cert);
+#endif
+    /* We return an error here which means the client is freed later on. */
+    return rc;
+}
