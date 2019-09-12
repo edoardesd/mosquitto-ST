@@ -90,7 +90,7 @@ int mosquitto__check_keepalive(struct mosquitto *mosq)
 
 		if(mosq->state == mosq_cs_connected && mosq->ping_t == 0){
 #ifdef WITH_BROKER
-			send__pingreq(db, mosq);
+			send__pingreq(db->stp, mosq);
 #else
             send__pingreq(mosq);
 #endif

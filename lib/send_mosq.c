@@ -41,7 +41,7 @@ Contributors:
 
 
 #ifdef WITH_BROKER
-int send__pingreq(struct mosquitto_db *db, struct mosquitto *mosq)
+int send__pingreq(struct mosquitto__stp *stp, struct mosquitto *mosq)
 #else
 int send__pingreq(struct mosquitto *mosq)
 #endif
@@ -55,7 +55,7 @@ int send__pingreq(struct mosquitto *mosq)
 #endif
     
 #ifdef WITH_BROKER
-    rc = send__pingreqcomp(db, mosq, CMD_PINGREQ);
+    rc = send__pingreqcomp(stp, mosq, CMD_PINGREQ);
 #else
     rc = send__simple_command(mosq, CMD_PINGREQ);
 #endif
@@ -201,7 +201,7 @@ int send__simple_command(struct mosquitto *mosq, uint8_t command)
 
 /* For custom PINGREQ */
 #ifdef WITH_BROKER
-int send__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq, uint8_t command)
+int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_t command)
 {
     struct mosquitto__packet *packet = NULL;
     int payloadlen;
@@ -246,13 +246,13 @@ int send__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq, uint8_t c
     packet = mosquitto__calloc(1, sizeof(struct mosquitto__packet));
     if(!packet) return MOSQ_ERR_NOMEM;
     
-    packet->bpdu = packet__write_bpdu(db->stp);
+    packet->bpdu = packet__write_bpdu(stp);
     if(!packet->bpdu) return MOSQ_ERR_NOMEM;
     
     /* Set payload length */
     payloadlen = set__pingreqcomp_payloadlen(packet);
     
-    log__printf(NULL, MOSQ_LOG_DEBUG, "payload len: %d", payloadlen);
+    //log__printf(NULL, MOSQ_LOG_DEBUG, "PINGREQCOMP payload length: %d", payloadlen);
     packet->command = command;
     packet->remaining_length = headerlen + payloadlen;
     

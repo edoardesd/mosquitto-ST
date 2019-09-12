@@ -68,6 +68,12 @@ int handle__pingresp(struct mosquitto *mosq)
 	return MOSQ_ERR_SUCCESS;
 }
 
+int update__stp_fields(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet)
+{
+    
+    return MOSQ_ERR_SUCCESS;
+}
+
 int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
 {
     char protocol_name[7];
@@ -78,16 +84,16 @@ int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
     int slen;
     uint16_t slen16;
     uint16_t keepalive = 0;
-    char *src_address, *src_port, *src_id;
-    char *root_address, *root_port, *root_id;
-    char *root_distance;
-    char *src_pid;
+    struct mosquitto__bpdu__packet *recv_packet;
     
     assert(mosq);
     
     if(mosq->state != mosq_cs_connected){
         return MOSQ_ERR_PROTOCOL;
     }
+    
+    recv_packet = mosquitto__calloc(1, sizeof(struct mosquitto__bpdu__packet));
+    if(!recv_packet) return MOSQ_ERR_NOMEM;
     
     if(packet__read_uint16(&mosq->in_packet, &slen16)){
         rc = 1;
@@ -150,46 +156,52 @@ int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
     }
     
     /* Source properties */
-    if(packet__read_string(&mosq->in_packet, &src_address, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->src_address, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
-    if(packet__read_string(&mosq->in_packet, &src_port, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->src_port, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
-    if(packet__read_string(&mosq->in_packet, &src_id, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->src_id, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
     
     /* Root properties */
-    if(packet__read_string(&mosq->in_packet, &root_address, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->root_address, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
-    if(packet__read_string(&mosq->in_packet, &root_port, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->root_port, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
-    if(packet__read_string(&mosq->in_packet, &root_id, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->root_id, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
     
     /* Other */
-    if(packet__read_string(&mosq->in_packet, &root_distance, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->root_distance, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
-    if(packet__read_string(&mosq->in_packet, &src_pid, &slen)){
+    if(packet__read_string(&mosq->in_packet, &recv_packet->src_pid, &slen)){
         rc = 1;
         goto handle_connect_error;
     }
     
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_address: %s, source_port: %s, source_id: %s", src_address, src_port, src_id);
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Root_address: %s, root_port: %s, root_id: %s", root_address, root_port, root_id);
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_pid: %s, root_distance: %s", src_pid, root_distance);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_address: %s, source_port: %s, source_id: %s", recv_packet->src_address, recv_packet->src_port, recv_packet->src_id);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Root_address: %s, root_port: %s, root_id: %s", recv_packet->root_address, recv_packet->root_port, recv_packet->root_id);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_pid: %s, root_distance: %s", recv_packet->src_pid, recv_packet->root_distance);
+
+
+    /* Store packet fields */
+    if(update__stp_fields(db, recv_packet)){
+        log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
+    }
 
     return send__pingresp(mosq);
     

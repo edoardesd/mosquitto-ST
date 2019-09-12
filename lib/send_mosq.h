@@ -23,7 +23,7 @@ int send__simple_command(struct mosquitto *mosq, uint8_t command);
 int send__command_with_mid(struct mosquitto *mosq, uint8_t command, uint16_t mid, bool dup, uint8_t reason_code, const mosquitto_property *properties);
 int send__real_publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint32_t payloadlen, const void *payload, int qos, bool retain, bool dup, const mosquitto_property *cmsg_props, const mosquitto_property *store_props, uint32_t expiry_interval);
 
-int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session, const mosquitto_property *properties);
+int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t keepalive, bool clean_session, const mosquitto_property *properties);
 int send__disconnect(struct mosquitto *mosq, uint8_t reason_code, const mosquitto_property *properties);
 int send__pingresp(struct mosquitto *mosq);
 int send__puback(struct mosquitto *mosq, uint16_t mid, uint8_t reason_code);
@@ -35,8 +35,8 @@ int send__subscribe(struct mosquitto *mosq, int *mid, int topic_count, char *con
 int send__unsubscribe(struct mosquitto *mosq, int *mid, int topic_count, char *const *const topic, const mosquitto_property *properties);
 
 #ifdef WITH_BROKER
-int send__pingreq(struct mosquitto_db *db, struct mosquitto *mosq);
-int send__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq, uint8_t command);
+int send__pingreq(struct mosquitto__stp *stp, struct mosquitto *mosq);
+int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_t command);
 #else
 int send__pingreq(struct mosquitto *mosq);
 #endif

@@ -417,7 +417,7 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 	HASH_ADD(hh_sock, db->contexts_by_sock, sock, sizeof(context->sock), context);
 
 
-	rc2 = send__connect(context, context->keepalive, context->clean_start, NULL);
+	rc2 = send__connect(db->stp, context, context->keepalive, context->clean_start, NULL);
 	if(rc2 == MOSQ_ERR_SUCCESS){
 		bridge__backoff_reset(context);
 		return rc;
