@@ -111,6 +111,7 @@ static bool db__ready_for_queue(struct mosquitto *context, int qos, struct mosqu
 int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
 {
 	struct mosquitto__subhier *subhier;
+    int rc;
 
 	if(!config || !db) return MOSQ_ERR_INVAL;
 
@@ -122,12 +123,10 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
 #ifdef WITH_BRIDGE
 	db->bridges = NULL;
 	db->bridge_count = 0;
-    /* INIT Spanning Tree Protocol params */
-    db->stp.broker_id = config->default_listener.port;
-    db->stp.root_distance = 0;
-    db->stp.root_id = config->default_listener.port;;
-    db->stp.res.pid = pid;
-    #endif
+    rc = info__init(db, config->default_listener.port, pid);
+    if(rc) return MOSQ_ERR_NOMEM;
+    
+#endif
 
 	// Initialize the hashtable
 	db->clientid_index_hash = NULL;
@@ -147,6 +146,57 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
 #endif
 
 	return MOSQ_ERR_SUCCESS;
+}
+
+int info__init(struct mosquitto_db *db, int port, int pid){
+    
+    struct mosquitto__stp *stp = NULL;
+    stp = mosquitto__calloc(1, sizeof(struct mosquitto__stp));
+    if(!stp){
+        log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
+        return MOSQ_ERR_NOMEM;
+    }
+    
+    stp->root = alloc__info(port);
+    if(!stp->root) return MOSQ_ERR_NOMEM;
+    stp->leaf = alloc__info(port);
+    if(!stp->leaf) return MOSQ_ERR_NOMEM;
+    stp->res = alloc__res(pid);
+    if(!stp->res) return MOSQ_ERR_NOMEM;
+    stp->root_distance = 0;
+    
+    db->stp = stp;
+    
+    return MOSQ_ERR_SUCCESS;
+}
+
+struct broker__info *alloc__info(int port){
+    struct broker__info *broker = NULL;
+    
+    broker = mosquitto__calloc(1, sizeof(struct broker__info));
+    if(!broker){
+        log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
+        return NULL;
+    }
+    /* Assign outgoing port of the broker */
+    broker->brk_port = port;
+    broker->brk_id = NULL;
+    broker->brk_address = NULL;
+    
+    return broker;
+}
+
+struct broker__resources *alloc__res(int pid){
+    struct broker__resources *res = NULL;
+    
+    res = mosquitto__calloc(1, sizeof(struct broker__resources));
+    if(!res){
+        log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
+        return NULL;
+    }
+    res->pid = pid;
+    
+    return res;
 }
 
 static void subhier_clean(struct mosquitto_db *db, struct mosquitto__subhier **subhier)

@@ -425,7 +425,7 @@ struct mosquitto_db{
 	struct mosquitto *contexts_for_free;
 #ifdef WITH_BRIDGE
 	struct mosquitto **bridges;
-    struct mosquitto__stp stp;
+    struct mosquitto__stp *stp;
 #endif
 	struct clientid__index_hash *clientid_index_hash;
 	struct mosquitto_msg_store *msg_store;
@@ -631,6 +631,9 @@ int db__message_reconnect_reset(struct mosquitto_db *db, struct mosquitto *conte
 void sys_tree__init(struct mosquitto_db *db);
 void sys_tree__update(struct mosquitto_db *db, int interval, time_t start_time);
 
+int info__init(struct mosquitto_db *db, int port, int pid);
+struct broker__resources *alloc__res(int pid);
+struct broker__info *alloc__info(int port);
 /* ============================================================
  * Subscription functions
  * ============================================================ */
