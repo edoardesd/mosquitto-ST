@@ -369,8 +369,10 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 	char *username = NULL, *password = NULL;
 
 	//new variable for handling the custom message
-	uint8_t custom_flag;
-	char *custom_message = NULL;
+	uint8_t stp_flag;
+	//char *custom_message = NULL;
+    
+    struct mosquitto__bpdu__packet *recv_packet;
 
 	int rc;
 	int slen;
@@ -401,6 +403,11 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 		goto handle_connect_error;
 	}
 
+    /* Check correct allocation of the STP temporary packet */
+    recv_packet = mosquitto__calloc(1, sizeof(struct mosquitto__bpdu__packet));
+    if(!recv_packet) return MOSQ_ERR_NOMEM;
+    
+    
 	/* Read protocol name as length then bytes rather than with read_string
 	 * because the length is fixed and we can check that. Removes the need
 	 * for another malloc as well. */
@@ -501,7 +508,7 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 	will_retain = ((connect_flags & 0x20) == 0x20); // Temporary hack because MSVC<1800 doesn't have stdbool.h.
 	password_flag = connect_flags & 0x40;
 	username_flag = connect_flags & 0x80;
-	custom_flag = connect_flags & 0x30;
+	stp_flag = connect_flags & 0x30;
 
 	if(will && will_retain && db->config->retain_available == false){
 		if(protocol_version == mosq_p_mqtt5){
@@ -596,16 +603,6 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 		}
 	}
 
-	//custom message
-	if(custom_flag){
-		if(packet__read_string(&context->in_packet, &custom_message, &slen)){
-			rc = 1;
-			goto handle_connect_error;
-		}
-		//log__printf(NULL, MOSQ_LOG_DEBUG, "[NEW] Received %s from the connect msg", custom_message);
-	}
-
-
 	if(username_flag){
 		rc = packet__read_string(&context->in_packet, &username, &slen);
 		if(rc == MOSQ_ERR_NOMEM){
@@ -644,12 +641,52 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 			}
 		}
 	}
+    
+    if(stp_flag){
+        /* Source properties */
+        if(packet__read_string(&context->in_packet, &recv_packet->src_address, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
+        if(packet__read_string(&context->in_packet, &recv_packet->src_port, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
+        if(packet__read_string(&context->in_packet, &recv_packet->src_id, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
+        
+        /* Root properties */
+        if(packet__read_string(&context->in_packet, &recv_packet->root_address, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
+        if(packet__read_string(&context->in_packet, &recv_packet->root_port, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
+        if(packet__read_string(&context->in_packet, &recv_packet->root_id, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
+        
+        /* Other */
+        if(packet__read_string(&context->in_packet, &recv_packet->root_distance, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
+        if(packet__read_string(&context->in_packet, &recv_packet->src_pid, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
 
-	if(context->in_packet.pos != context->in_packet.remaining_length){
-		/* Surplus data at end of packet, this must be an error. */
-		rc = MOSQ_ERR_PROTOCOL;
-		goto handle_connect_error;
-	}
+        if(context->in_packet.pos != context->in_packet.remaining_length){
+            /* Surplus data at end of packet, this must be an error. */
+            rc = MOSQ_ERR_PROTOCOL;
+            goto handle_connect_error;
+        }
+    }
 
 #ifdef WITH_TLS
 	if(context->listener->ssl_ctx && (context->listener->use_identity_as_username || context->listener->use_subject_as_username)){

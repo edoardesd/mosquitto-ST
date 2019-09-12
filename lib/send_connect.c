@@ -40,17 +40,13 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 	int rc;
 	uint8_t version;
 	char *clientid, *username, *password;
-
-	char *custom = NULL; 
-
+	char *custom = NULL;
 	int headerlen;
 	int proplen = 0, will_proplen, varbytes;
 	mosquitto_property *local_props = NULL;
 	uint16_t receive_maximum;
 
 	assert(mosq);
-
-
 
 	if(mosq->protocol == mosq_p_mqtt31 && !mosq->id) return MOSQ_ERR_PROTOCOL;
 
@@ -107,10 +103,6 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 	}else{
 		payloadlen = 2;
 	}
-	//increase size if custom msg is present
-	if(custom){
-		payloadlen += 2+strlen(custom);
-	}
 
 	if(mosq->will){
 		will = 1;
@@ -123,6 +115,14 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 			payloadlen += will_proplen + varbytes;
 		}
 	}
+    
+    if(stp){
+        packet->bpdu = packet__write_bpdu(stp);
+        if(!packet->bpdu) return MOSQ_ERR_NOMEM;
+        
+        /*add to the current length the fields of the STP */
+        payloadlen += set__pingreqcomp_payloadlen(packet);
+    }
 
 
 	/* After this check we can be sure that the username and password are
@@ -206,10 +206,60 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 		packet__write_string(packet, password, strlen(password));
 	}
 
-	//write the msg in the payload
-	if(custom){
-		packet__write_string(packet, custom, strlen(custom));
-	}
+    /* Pimped payload */
+    if(stp){
+        /* Source */
+        if(packet->bpdu->src_address){
+            packet__write_string(packet, packet->bpdu->src_address, strlen(packet->bpdu->src_address));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+        
+        if(packet->bpdu->src_port){
+            packet__write_string(packet, packet->bpdu->src_port, strlen(packet->bpdu->src_port));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+        
+        if(packet->bpdu->src_id){
+            packet__write_string(packet, packet->bpdu->src_id, strlen(packet->bpdu->src_id));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+        
+        /* Root */
+        if(packet->bpdu->root_address){
+            packet__write_string(packet, packet->bpdu->root_address, strlen(packet->bpdu->root_address));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+        
+        if(packet->bpdu->root_port){
+            packet__write_string(packet, packet->bpdu->root_port, strlen(packet->bpdu->root_port));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+        
+        if(packet->bpdu->root_id){
+            packet__write_string(packet, packet->bpdu->root_id, strlen(packet->bpdu->root_id));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+        
+        /* Distance */
+        if(packet->bpdu->root_distance){
+            packet__write_string(packet, packet->bpdu->root_distance, strlen(packet->bpdu->root_distance));
+        }else{
+            packet__write_uint16(packet, 100);
+        }
+        
+        /* Resources */
+        if(packet->bpdu->src_pid){
+            packet__write_string(packet, packet->bpdu->src_pid, strlen(packet->bpdu->src_pid));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+    }
 
 	mosq->keepalive = keepalive;
 #ifdef WITH_BROKER

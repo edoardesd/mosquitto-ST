@@ -428,7 +428,7 @@ int socks5__read(struct mosquitto *mosq)
 				int rc = net__socket_connect_step3(mosq, mosq->host);
 				if(rc) return rc;
 			}
-			return send__connect(mosq, mosq->keepalive, mosq->clean_start, NULL);
+			return send__connect(NULL, mosq, mosq->keepalive, mosq->clean_start, NULL);
 		}else{
 			i = mosq->in_packet.payload[1];
 			packet__cleanup(&mosq->in_packet);

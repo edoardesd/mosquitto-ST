@@ -250,7 +250,7 @@ static int mosquitto__reconnect(struct mosquitto *mosq, bool blocking, const mos
 	}else
 #endif
 	{
-		return send__connect(mosq, mosq->keepalive, mosq->clean_start, outgoing_properties);
+        return send__connect(NULL, mosq, mosq->keepalive, mosq->clean_start, outgoing_properties);
 	}
 }
 

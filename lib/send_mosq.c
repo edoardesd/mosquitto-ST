@@ -251,8 +251,8 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
     
     /* Set payload length */
     payloadlen = set__pingreqcomp_payloadlen(packet);
-    
     //log__printf(NULL, MOSQ_LOG_DEBUG, "PINGREQCOMP payload length: %d", payloadlen);
+    
     packet->command = command;
     packet->remaining_length = headerlen + payloadlen;
     
@@ -328,6 +328,7 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
         packet__write_string(packet, packet->bpdu->root_distance, strlen(packet->bpdu->root_distance));
     }else{
         packet__write_uint16(packet, 100);
+        //TODO fix root distance lower limit
     }
 
     /* Resources */
