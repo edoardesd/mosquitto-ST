@@ -148,15 +148,34 @@ struct session_expiry_list {
 	struct session_expiry_list *next;
 };
 
-struct resources{
+/* add RAM, CPU, etc... */
+struct broker__resources{
     int pid;
 };
 
+/* Static information about a broker */
+struct broker__info{
+    char *_id;
+    char *address;
+    int port;
+};
+
 struct mosquitto__stp{
-    int broker_id;
-    int root_id;
+    struct broker__info *own;
+    struct broker__info *root;
     int root_distance;
-    struct resources res;
+    struct broker__resources *res;
+};
+
+struct mosquitto__bpdu__packet{
+    char *src_address;
+    char *src_port;
+    char *src_id;
+    char *root_address;
+    char *root_port;
+    char *root_id;
+    char *root_distance;
+    char *src_pid;
 };
 
 struct mosquitto__packet{
@@ -170,7 +189,7 @@ struct mosquitto__packet{
 	uint16_t mid;
 	uint8_t command;
 	int8_t remaining_count;
-    struct mosquitto__stp *bpdu;
+    struct mosquitto__bpdu__packet *bpdu;
 };
 
 struct mosquitto_message_all{

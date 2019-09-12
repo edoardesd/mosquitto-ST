@@ -44,6 +44,116 @@ Contributors:
 #  define G_PUB_MSGS_SENT_INC(A)
 #endif
 
+char *convert_integer(int origin)
+{
+    char *destination;
+    ssize_t bufsz;
+    
+    bufsz = snprintf(NULL, 0, "%d", origin);
+    destination = malloc(bufsz+1);
+    snprintf(destination, bufsz+1, "%d", origin);
+    
+    return destination;
+}
+
+int set__pingreqcomp_payloadlen(struct mosquitto__packet *packet)
+{
+    int length = 0;
+    
+    /* Source */
+    if(packet->bpdu->src_address){
+        length = 2+strlen(packet->bpdu->src_address);
+    }else{
+        length = 2;
+    }
+    
+    if(packet->bpdu->src_port){
+        length += 2+strlen(packet->bpdu->src_port);
+    }else{
+        length += 2;
+    }
+    
+    if(packet->bpdu->src_id){
+        length += 2+strlen(packet->bpdu->src_id);
+    }else{
+        length += 2;
+    }
+    
+    /* Root */
+    if(packet->bpdu->root_address){
+        length += 2+strlen(packet->bpdu->root_address);
+    }else{
+        length += 2;
+    }
+    
+    if(packet->bpdu->root_port){
+        length += 2+strlen(packet->bpdu->root_port);
+    }else{
+        length += 2;
+    }
+    
+    if(packet->bpdu->root_id){
+        length += 2+strlen(packet->bpdu->root_id);
+    }else{
+        length += 2;
+    }
+    
+    if(packet->bpdu->root_distance){
+        length += 2+strlen(packet->bpdu->root_distance);
+    }else{
+        length += 2;
+    }
+    
+    if(packet->bpdu->src_pid){
+        length += 2+strlen(packet->bpdu->src_pid);
+    }else{
+        length += 2;
+    }
+    
+    return length;
+}
+
+struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
+{
+    struct mosquitto__bpdu__packet *bpdu_pkt = NULL;
+    
+    bpdu_pkt = mosquitto__calloc(1, sizeof(struct mosquitto__bpdu__packet));
+    if(!bpdu_pkt) return NULL;
+    
+    /* Source values */
+    if(stp->own->port){
+        bpdu_pkt->src_port = convert_integer(stp->own->port);
+    }
+    if(stp->own->_id){
+        bpdu_pkt->src_id = stp->own->_id;
+    }
+    if(stp->own->address){
+        bpdu_pkt->src_address = stp->own->address;
+    }
+    
+    /* Root values */
+    if(stp->root->port){
+        bpdu_pkt->root_port = convert_integer(stp->root->port);
+    }
+    if(stp->root->_id){
+        bpdu_pkt->src_id = stp->root->_id;
+    }
+    if(stp->root->address){
+        bpdu_pkt->src_address = stp->root->address;
+    }
+    
+    /* Resources values */
+    if(stp->res->pid){
+        bpdu_pkt->src_pid = convert_integer(stp->res->pid);
+    }
+    
+    if(stp->res->pid >= 0){
+        bpdu_pkt->root_distance = convert_integer(stp->root_distance);
+    }
+    
+    return bpdu_pkt;
+}
+
 int packet__alloc(struct mosquitto__packet *packet)
 {
 	uint8_t remaining_bytes[5], byte;

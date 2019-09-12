@@ -23,6 +23,10 @@ Contributors:
 struct mosquitto_db;
 #endif
 
+struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp);
+int set__pingreqcomp_payloadlen(struct mosquitto__packet *packet);
+char *convert_integer(int origin);
+
 int packet__alloc(struct mosquitto__packet *packet);
 void packet__cleanup(struct mosquitto__packet *packet);
 int packet__queue(struct mosquitto *mosq, struct mosquitto__packet *packet);

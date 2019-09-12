@@ -473,6 +473,8 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 		rc = 1;
 		goto handle_connect_error;
 	}
+    log__printf(NULL, MOSQ_LOG_DEBUG, "connect flag %u", connect_flags);
+
 	if(context->protocol == mosq_p_mqtt311 || context->protocol == mosq_p_mqtt5){
 		if((connect_flags & 0x01) != 0x00){
 			rc = MOSQ_ERR_PROTOCOL;

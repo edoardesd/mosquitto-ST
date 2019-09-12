@@ -159,8 +159,8 @@ int info__init(struct mosquitto_db *db, int port, int pid){
     
     stp->root = alloc__info(port);
     if(!stp->root) return MOSQ_ERR_NOMEM;
-    stp->leaf = alloc__info(port);
-    if(!stp->leaf) return MOSQ_ERR_NOMEM;
+    stp->own = alloc__info(port);
+    if(!stp->own) return MOSQ_ERR_NOMEM;
     stp->res = alloc__res(pid);
     if(!stp->res) return MOSQ_ERR_NOMEM;
     stp->root_distance = 0;
@@ -179,9 +179,9 @@ struct broker__info *alloc__info(int port){
         return NULL;
     }
     /* Assign outgoing port of the broker */
-    broker->brk_port = port;
-    broker->brk_id = NULL;
-    broker->brk_address = NULL;
+    broker->port = port;
+    broker->_id = NULL;
+    broker->address = NULL;
     
     return broker;
 }

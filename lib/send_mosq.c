@@ -55,7 +55,7 @@ int send__pingreq(struct mosquitto *mosq)
 #endif
     
 #ifdef WITH_BROKER
-    rc = send__complex_command(db, mosq, CMD_PINGREQ);
+    rc = send__pingreqcomp(db, mosq, CMD_PINGREQ);
 #else
     rc = send__simple_command(mosq, CMD_PINGREQ);
 #endif
@@ -196,30 +196,25 @@ int send__simple_command(struct mosquitto *mosq, uint8_t command)
 	return packet__queue(mosq, packet);
 }
 
+
+
+
 /* For custom PINGREQ */
 #ifdef WITH_BROKER
-int send__complex_command(struct mosquitto_db *db, struct mosquitto *mosq, uint8_t command)
+int send__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq, uint8_t command)
 {
     struct mosquitto__packet *packet = NULL;
     int payloadlen;
-    uint8_t byte;
-    int rc;
-    uint8_t version;
-    char *broker_id, *root_dist, *root_id;
-    int res_pid;
-    
     int headerlen;
     int proplen = 0, varbytes;
+    int rc;
+    uint8_t byte;
+    uint8_t version;
+    
     mosquitto_property *local_props = NULL;
     uint16_t receive_maximum;
     
     assert(mosq);
-    
-    broker_id = "";//db->stp.broker_id;
-    root_dist = ""; //(char *) db->stp.root_distance;
-    root_id = ""; //(char*) db->stp.root_id;
-    
-    res_pid = db->stp.res.pid;
     
     if(mosq->protocol == mosq_p_mqtt5){
         /* Generate properties from options */
@@ -251,17 +246,13 @@ int send__complex_command(struct mosquitto_db *db, struct mosquitto *mosq, uint8
     packet = mosquitto__calloc(1, sizeof(struct mosquitto__packet));
     if(!packet) return MOSQ_ERR_NOMEM;
     
+    packet->bpdu = packet__write_bpdu(db->stp);
+    if(!packet->bpdu) return MOSQ_ERR_NOMEM;
+    
     /* Set payload length */
-    if(broker_id){
-        payloadlen = 2+strlen(broker_id);
-    }else{
-        payloadlen = 2;
-    }
+    payloadlen = set__pingreqcomp_payloadlen(packet);
     
-    if(root_dist){
-        payloadlen += 2+strlen(root_dist);
-    }
-    
+    log__printf(NULL, MOSQ_LOG_DEBUG, "payload len: %d", payloadlen);
     packet->command = command;
     packet->remaining_length = headerlen + payloadlen;
     
@@ -280,11 +271,8 @@ int send__complex_command(struct mosquitto_db *db, struct mosquitto *mosq, uint8
     }
     
     /* Check better */
-    byte = (1&0x1)<<1; //different (clean_session&0x1)<<1;
-    
-    if(root_dist){
-        byte = byte | 0x1<<2;
-    }
+    packet__write_byte(packet, version);
+    byte = (true&0x1)<<1; //different (clean_session&0x1)<<1;
     
     packet__write_byte(packet, byte);
     packet__write_uint16(packet, 6); //6 is keepalive
@@ -297,17 +285,59 @@ int send__complex_command(struct mosquitto_db *db, struct mosquitto *mosq, uint8
     }
     
     /* Payload */
-    if(broker_id){
-        packet__write_string(packet, broker_id, strlen(broker_id));
+    /* Source */
+    if(packet->bpdu->src_address){
+        packet__write_string(packet, packet->bpdu->src_address, strlen(packet->bpdu->src_address));
     }else{
         packet__write_uint16(packet, 0);
     }
     
-    if(root_dist){
-        packet__write_string(packet, root_dist, strlen(root_dist));
+    if(packet->bpdu->src_port){
+        packet__write_string(packet, packet->bpdu->src_port, strlen(packet->bpdu->src_port));
+    }else{
+        packet__write_uint16(packet, 0);
     }
     
-    log__printf(mosq, MOSQ_LOG_DEBUG, "Sending COMPLEX PING");
+    if(packet->bpdu->src_id){
+        packet__write_string(packet, packet->bpdu->src_id, strlen(packet->bpdu->src_id));
+    }else{
+        packet__write_uint16(packet, 0);
+    }
+
+    /* Root */
+    if(packet->bpdu->root_address){
+        packet__write_string(packet, packet->bpdu->root_address, strlen(packet->bpdu->root_address));
+    }else{
+        packet__write_uint16(packet, 0);
+    }
+    
+    if(packet->bpdu->root_port){
+        packet__write_string(packet, packet->bpdu->root_port, strlen(packet->bpdu->root_port));
+    }else{
+        packet__write_uint16(packet, 0);
+    }
+    
+    if(packet->bpdu->root_id){
+        packet__write_string(packet, packet->bpdu->root_id, strlen(packet->bpdu->root_id));
+    }else{
+        packet__write_uint16(packet, 0);
+    }
+
+    /* Distance */
+    if(packet->bpdu->root_distance){
+        packet__write_string(packet, packet->bpdu->root_distance, strlen(packet->bpdu->root_distance));
+    }else{
+        packet__write_uint16(packet, 100);
+    }
+
+    /* Resources */
+    if(packet->bpdu->src_pid){
+        packet__write_string(packet, packet->bpdu->src_pid, strlen(packet->bpdu->src_pid));
+    }else{
+        packet__write_uint16(packet, 0);
+    }
+    
+    log__printf(mosq, MOSQ_LOG_DEBUG, "Sending PINGREQ_COMP");
     return packet__queue(mosq, packet);
 }
 #endif
