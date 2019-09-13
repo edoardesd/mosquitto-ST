@@ -119,7 +119,7 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
         if(!packet->bpdu) return MOSQ_ERR_NOMEM;
         
         /*add to the current length the fields of the STP */
-        payloadlen += set__pingreqcomp_payloadlen(packet);
+        payloadlen += set__payloadlen(packet);
     }
 
 
@@ -257,6 +257,11 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
         /* Resources */
         if(packet->bpdu->origin_pid){
             packet__write_string(packet, packet->bpdu->origin_pid, strlen(packet->bpdu->origin_pid));
+        }else{
+            packet__write_uint16(packet, 0);
+        }
+        if(packet->bpdu->root_pid){
+            packet__write_string(packet, packet->bpdu->root_pid, strlen(packet->bpdu->root_pid));
         }else{
             packet__write_uint16(packet, 0);
         }

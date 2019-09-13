@@ -676,6 +676,10 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
             rc = 1;
             goto handle_connect_error;
         }
+        if(packet__read_string(&context->in_packet, &recv_packet->root_pid, &slen)){
+            rc = 1;
+            goto handle_connect_error;
+        }
 
         if(context->in_packet.pos != context->in_packet.remaining_length){
             /* Surplus data at end of packet, this must be an error. */
@@ -688,9 +692,13 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
         log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Source_pid: %s, root_distance: %s", recv_packet->origin_pid, recv_packet->distance);
         
         /* Store packet fields */
-        if(update__stp_properties(db, recv_packet)){
+#ifdef WITH_BRIDGE
+        log__printf(NULL, MOSQ_LOG_DEBUG, "bridge? %d", db->config->bridges->addresses->port);
+        
+        if(update__stp_properties(db, db->config->bridges, recv_packet)){
             log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
         }
+#endif
     }
 
 #ifdef WITH_TLS

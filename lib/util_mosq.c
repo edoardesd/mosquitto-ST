@@ -59,26 +59,30 @@ Contributors:
 
 
 #ifdef WITH_BROKER
-int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet)
+int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet)
 {
     int origin_port, root_port;
     int origin_pid, root_distance;
+    int root_pid;
     origin_port = atoi(packet->origin_port);
     root_port = atoi(packet->root_port);
     origin_pid = atoi(packet->origin_pid);
     root_distance = atoi(packet->distance)+1;
+    root_pid = atoi(packet->root_pid);
+    
+    log__printf(NULL, MOSQ_LOG_DEBUG, "UPDATE STP VALS");
     
     /* ERROR PART */
     /* Origin and node = same address */
-    if(db->stp->own->address == packet->origin_address && db->stp->own->port == origin_port){
+    if(db->stp->my->address == packet->origin_address && db->stp->my->port == origin_port){
         log__printf(NULL, MOSQ_LOG_ERR, "Packet coming from the same address and port of the broker itself");
-        if(db->stp->own->_id == packet->origin_id){
+        if(db->stp->my->_id == packet->origin_id){
             log__printf(NULL, MOSQ_LOG_ERR, "...and even the ID is the same");
         }
         return MOSQ_ERR_STP;
     }
     
-    if(db->stp->own->res->pid == origin_pid){
+    if(db->stp->my->res->pid == origin_pid){
         log__printf(NULL, MOSQ_LOG_ERR, "Same PID/ADDRESS");
         return MOSQ_ERR_STP;
     }
@@ -86,66 +90,74 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bpdu__pack
     
     /* UPDATE PART */
     /* Root < RECV_node */
-    if(db->stp->root->res->pid < origin_pid){
+    if(db->stp->my_root->res->pid < root_pid){
+        log__printf(NULL, MOSQ_LOG_DEBUG, "rootPID < RECEIVED pid");
         //Current node is the root for RECV/SRC node
         //set port as DESIGNATED PORT -> TODO
-        
+        bridge->port_state = designated_port;
+        log__printf(NULL, MOSQ_LOG_DEBUG, "[PORT] set %d as %d for %s", bridge->addresses->port, bridge->port_state, bridge->remote_clientid);
         log__printf(NULL, MOSQ_LOG_DEBUG, "Message coming from a child, nothing to do.");
         return MOSQ_ERR_SUCCESS;
     }
 
     /* Root == RECV node */
     /* Impossible now, CHECK!! */
-    if(db->stp->root->res->pid == origin_pid){
+    if(db->stp->my_root->res->pid == root_pid){
+        log__printf(NULL, MOSQ_LOG_DEBUG, "Nothing to do now");
         //Current node is tie with the RECV node
         /* The shorter DISTANCE won, the shorter distance do nothing */
         if(db->stp->distance < root_distance){
             /* port became DESIGNATED PORT -> TODO */
         }
         if(db->stp->distance == root_distance){
-            if(db->stp->own->address && packet->origin_address){ //always check if the addresses are present
-                /*
-                 if(db->stp->own->address < packet->origin_address){
-                    port became DESIGNATED PORT -> TODO
+            if(db->stp->my->address && packet->origin_address){ //always check if the addresses are present
+                 if(db->stp->my->address < packet->origin_address){
+                     bridge->port_state = designated_port;
+                     log__printf(NULL, MOSQ_LOG_DEBUG, "set %d as %d for %s", bridge->addresses->port, bridge->port_state, bridge->remote_clientid);
                 }else{
-                  Port goes in BLOCK STATE
+                  bridge->port_state = block_port;
+                  log__printf(NULL, MOSQ_LOG_DEBUG, "set %d as %d for %s", bridge->addresses->port, bridge->port_state, bridge->remote_clientid);
+
                 }
-                */
             }
         }
+        /*
         if(db->stp->distance > root_distance){
             //UPDATE and use the other node as best path
-            db->stp->root->res->pid = origin_pid;
+            db->stp->my_root->res->pid = origin_pid;
             if(origin_port){
-                db->stp->root->port = origin_port;
+                db->stp->my_root->port = origin_port;
             }
             if(packet->origin_id){
-                db->stp->root->_id = packet->origin_id;
+                db->stp->my_root->_id = packet->origin_id;
             }
             if(packet->origin_address){
-                db->stp->root->address = packet->origin_address;
+                db->stp->my_root->address = packet->origin_address;
             }
         }
+        */
         return MOSQ_ERR_SUCCESS;
     }
     
-    if(db->stp->root->res->pid > origin_pid){
+    if(db->stp->my_root->res->pid > origin_pid){
         /* Check resources, update only if the resources are better than the current broker and the root current broker */
         log__printf(NULL, MOSQ_LOG_DEBUG, "Message coming from the root (or partial root), update values...");
         if(packet->root_address){
-            db->stp->root->address = packet->root_address;
+            db->stp->my_root->address = packet->root_address;
         }
         if(packet->root_id){
-            db->stp->root->_id = packet->root_id;
+            db->stp->my_root->_id = packet->root_id;
         }
-        db->stp->root->port = root_port;
+        db->stp->my_root->port = root_port;
         db->stp->distance = root_distance;
         
         /* Update resources */
-        db->stp->root->res->pid = origin_pid;
+        db->stp->my_root->res->pid = origin_pid;
         
         /* Set port as ROOT port */
-    
+        bridge->port_state = king_port;
+        log__printf(NULL, MOSQ_LOG_DEBUG, "set %d as %d for %s", bridge->addresses->port, bridge->port_state, bridge->remote_clientid);
+
         return MOSQ_ERR_SUCCESS;
     }
     return MOSQ_ERR_STP;

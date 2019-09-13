@@ -56,7 +56,7 @@ char *convert_integer(int origin)
     return destination;
 }
 
-int set__pingreqcomp_payloadlen(struct mosquitto__packet *packet)
+int set__payloadlen(struct mosquitto__packet *packet)
 {
     int length = 0;
     
@@ -110,6 +110,12 @@ int set__pingreqcomp_payloadlen(struct mosquitto__packet *packet)
         length += 2;
     }
     
+    if(packet->bpdu->root_pid){
+        length += 2+strlen(packet->bpdu->root_pid);
+    }else{
+        length += 2;
+    }
+    
     return length;
 }
 
@@ -121,30 +127,33 @@ struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
     if(!bpdu_pkt) return NULL;
     
     /* Source values */
-    if(stp->own->port){
-        bpdu_pkt->origin_port = convert_integer(stp->own->port);
+    if(stp->my->port){
+        bpdu_pkt->origin_port = convert_integer(stp->my->port);
     }
-    if(stp->own->_id){
-        bpdu_pkt->origin_id = stp->own->_id;
+    if(stp->my->_id){
+        bpdu_pkt->origin_id = stp->my->_id;
     }
-    if(stp->own->address){
-        bpdu_pkt->origin_address = stp->own->address;
+    if(stp->my->address){
+        bpdu_pkt->origin_address = stp->my->address;
     }
     
     /* Root values */
-    if(stp->root->port){
-        bpdu_pkt->root_port = convert_integer(stp->root->port);
+    if(stp->my_root->port){
+        bpdu_pkt->root_port = convert_integer(stp->my_root->port);
     }
-    if(stp->root->_id){
-        bpdu_pkt->origin_id = stp->root->_id;
+    if(stp->my_root->_id){
+        bpdu_pkt->origin_id = stp->my_root->_id;
     }
-    if(stp->root->address){
-        bpdu_pkt->origin_address = stp->root->address;
+    if(stp->my_root->address){
+        bpdu_pkt->origin_address = stp->my_root->address;
     }
     
     /* Resources values */
-    if(stp->own->res->pid){
-        bpdu_pkt->origin_pid = convert_integer(stp->own->res->pid);
+    if(stp->my->res->pid){
+        bpdu_pkt->origin_pid = convert_integer(stp->my->res->pid);
+    }
+    if(stp->my_root->res->pid){
+        bpdu_pkt->root_pid = convert_integer(stp->my_root->res->pid);
     }
     
     if(stp->distance >= 0){

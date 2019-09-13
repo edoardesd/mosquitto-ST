@@ -250,7 +250,7 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
     if(!packet->bpdu) return MOSQ_ERR_NOMEM;
     
     /* Set payload length */
-    payloadlen = set__pingreqcomp_payloadlen(packet);
+    payloadlen = set__payloadlen(packet);
     //log__printf(NULL, MOSQ_LOG_DEBUG, "PINGREQCOMP payload length: %d", payloadlen);
     
     packet->command = command;
@@ -334,6 +334,11 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
     /* Resources */
     if(packet->bpdu->origin_pid){
         packet__write_string(packet, packet->bpdu->origin_pid, strlen(packet->bpdu->origin_pid));
+    }else{
+        packet__write_uint16(packet, 0);
+    }
+    if(packet->bpdu->root_pid){
+        packet__write_string(packet, packet->bpdu->root_pid, strlen(packet->bpdu->root_pid));
     }else{
         packet__write_uint16(packet, 0);
     }

@@ -34,7 +34,7 @@ uint16_t mosquitto__mid_generate(struct mosquitto *mosq);
 FILE *mosquitto__fopen(const char *path, const char *mode, bool restrict_read);
 
 #ifdef WITH_BROKER
-int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet);
+int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet);
 #endif
 
 #ifdef WITH_TLS

@@ -186,14 +186,18 @@ int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
         rc = 1;
         goto handle_connect_error;
     }
+    if(packet__read_string(&mosq->in_packet, &recv_packet->root_pid, &slen)){
+        rc = 1;
+        goto handle_connect_error;
+    }
     
     log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_address: %s, source_port: %s, source_id: %s", recv_packet->origin_address, recv_packet->origin_port, recv_packet->origin_id);
     log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Root_address: %s, root_port: %s, root_id: %s", recv_packet->root_address, recv_packet->root_port, recv_packet->root_id);
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_pid: %s, root_distance: %s", recv_packet->origin_pid, recv_packet->distance);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_pid: %s, root_pid: %s, root_distance: %s", recv_packet->origin_pid, recv_packet-> root_pid, recv_packet->distance);
 
      /* Store packet fields */
 #ifdef WITH_BROKER
-    if(update__stp_properties(db, recv_packet)){
+    if(update__stp_properties(db, db->config->bridges, recv_packet)){
         log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
     }
 #endif

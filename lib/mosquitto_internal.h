@@ -162,8 +162,8 @@ struct broker__info{
 };
 
 struct mosquitto__stp{
-    struct broker__info *own;
-    struct broker__info *root;
+    struct broker__info *my;
+    struct broker__info *my_root;
     int distance;
 };
 
