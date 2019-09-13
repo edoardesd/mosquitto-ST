@@ -464,6 +464,12 @@ enum mosquitto_bridge_start_type{
 	bst_once = 3
 };
 
+enum mosquitto_bridge_port_state{
+    block_port = 0,
+    root_port = 1,
+    designated_port = 2,
+};
+
 struct mosquitto__bridge_topic{
 	char *topic;
 	int qos;
@@ -497,6 +503,7 @@ struct mosquitto__bridge{
 	enum mosquitto__protocol protocol_version;
 	time_t restart_t;
 
+    enum mosquitto_bridge_port_state port_state;
 	char *custom_message; //added by me
 
 	char *remote_clientid;
