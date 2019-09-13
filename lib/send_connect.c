@@ -40,7 +40,6 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 	int rc;
 	uint8_t version;
 	char *clientid, *username, *password;
-	char *custom = NULL;
 	int headerlen;
 	int proplen = 0, will_proplen, varbytes;
 	mosquitto_property *local_props = NULL;
@@ -53,7 +52,6 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 #if defined(WITH_BROKER) && defined(WITH_BRIDGE)
 	if(mosq->bridge){
 		//add my msg
-		custom = mosq->bridge->custom_message;
 		clientid = mosq->bridge->remote_clientid;
 		username = mosq->bridge->remote_username;
 		password = mosq->bridge->remote_password;
@@ -174,6 +172,9 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 	if(mosq->password){
 		byte = byte | 0x1<<6;
 	}
+    
+    log__printf(mosq, MOSQ_LOG_DEBUG, "Byte state: %u", byte);
+    
 	packet__write_byte(packet, byte);
 	packet__write_uint16(packet, keepalive);
 
@@ -209,20 +210,20 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
     /* Pimped payload */
     if(stp){
         /* Source */
-        if(packet->bpdu->src_address){
-            packet__write_string(packet, packet->bpdu->src_address, strlen(packet->bpdu->src_address));
+        if(packet->bpdu->origin_address){
+            packet__write_string(packet, packet->bpdu->origin_address, strlen(packet->bpdu->origin_address));
         }else{
             packet__write_uint16(packet, 0);
         }
         
-        if(packet->bpdu->src_port){
-            packet__write_string(packet, packet->bpdu->src_port, strlen(packet->bpdu->src_port));
+        if(packet->bpdu->origin_port){
+            packet__write_string(packet, packet->bpdu->origin_port, strlen(packet->bpdu->origin_port));
         }else{
             packet__write_uint16(packet, 0);
         }
         
-        if(packet->bpdu->src_id){
-            packet__write_string(packet, packet->bpdu->src_id, strlen(packet->bpdu->src_id));
+        if(packet->bpdu->origin_id){
+            packet__write_string(packet, packet->bpdu->origin_id, strlen(packet->bpdu->origin_id));
         }else{
             packet__write_uint16(packet, 0);
         }
@@ -247,15 +248,15 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
         }
         
         /* Distance */
-        if(packet->bpdu->root_distance){
-            packet__write_string(packet, packet->bpdu->root_distance, strlen(packet->bpdu->root_distance));
+        if(packet->bpdu->distance){
+            packet__write_string(packet, packet->bpdu->distance, strlen(packet->bpdu->distance));
         }else{
             packet__write_uint16(packet, 100);
         }
         
         /* Resources */
-        if(packet->bpdu->src_pid){
-            packet__write_string(packet, packet->bpdu->src_pid, strlen(packet->bpdu->src_pid));
+        if(packet->bpdu->origin_pid){
+            packet__write_string(packet, packet->bpdu->origin_pid, strlen(packet->bpdu->origin_pid));
         }else{
             packet__write_uint16(packet, 0);
         }

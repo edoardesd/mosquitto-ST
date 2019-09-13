@@ -365,13 +365,9 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 	char *client_id = NULL;
 	struct mosquitto_message_all *will_struct = NULL;
 	uint8_t will, will_retain, will_qos, clean_start;
-	uint8_t username_flag, password_flag;
+	uint8_t username_flag, password_flag, stp_flag; /* STP flag checks whether the CONNECT is from a bridged broker or not */
 	char *username = NULL, *password = NULL;
 
-	//new variable for handling the custom message
-	uint8_t stp_flag;
-	//char *custom_message = NULL;
-    
     struct mosquitto__bpdu__packet *recv_packet;
 
 	int rc;
@@ -644,15 +640,15 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
     
     if(stp_flag){
         /* Source properties */
-        if(packet__read_string(&context->in_packet, &recv_packet->src_address, &slen)){
+        if(packet__read_string(&context->in_packet, &recv_packet->origin_address, &slen)){
             rc = 1;
             goto handle_connect_error;
         }
-        if(packet__read_string(&context->in_packet, &recv_packet->src_port, &slen)){
+        if(packet__read_string(&context->in_packet, &recv_packet->origin_port, &slen)){
             rc = 1;
             goto handle_connect_error;
         }
-        if(packet__read_string(&context->in_packet, &recv_packet->src_id, &slen)){
+        if(packet__read_string(&context->in_packet, &recv_packet->origin_id, &slen)){
             rc = 1;
             goto handle_connect_error;
         }
@@ -672,11 +668,11 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
         }
         
         /* Other */
-        if(packet__read_string(&context->in_packet, &recv_packet->root_distance, &slen)){
+        if(packet__read_string(&context->in_packet, &recv_packet->distance, &slen)){
             rc = 1;
             goto handle_connect_error;
         }
-        if(packet__read_string(&context->in_packet, &recv_packet->src_pid, &slen)){
+        if(packet__read_string(&context->in_packet, &recv_packet->origin_pid, &slen)){
             rc = 1;
             goto handle_connect_error;
         }
@@ -685,6 +681,15 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
             /* Surplus data at end of packet, this must be an error. */
             rc = MOSQ_ERR_PROTOCOL;
             goto handle_connect_error;
+        }
+        
+        log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Source_address: %s, source_port: %s, source_id: %s", recv_packet->origin_address, recv_packet->origin_port, recv_packet->origin_id);
+        log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Root_address: %s, root_port: %s, root_id: %s", recv_packet->root_address, recv_packet->root_port, recv_packet->root_id);
+        log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Source_pid: %s, root_distance: %s", recv_packet->origin_pid, recv_packet->distance);
+        
+        /* Store packet fields */
+        if(update__stp_properties(db, recv_packet)){
+            log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
         }
     }
 

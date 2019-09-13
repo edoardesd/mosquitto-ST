@@ -99,6 +99,7 @@ enum mosq_err_t {
 	MOSQ_ERR_OVERSIZE_PACKET = 25,
 	MOSQ_ERR_OCSP = 26,
     MOSQ_DROPPING_BRIDGE = 27, //drop the bridge msg
+    MOSQ_ERR_STP = 28,
 };
 
 /* Option values */

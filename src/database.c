@@ -161,9 +161,11 @@ int info__init(struct mosquitto_db *db, int port, int pid){
     if(!stp->root) return MOSQ_ERR_NOMEM;
     stp->own = alloc__info(port);
     if(!stp->own) return MOSQ_ERR_NOMEM;
-    stp->res = alloc__res(pid);
-    if(!stp->res) return MOSQ_ERR_NOMEM;
-    stp->root_distance = 0;
+    stp->own->res = alloc__res(pid);
+    if(!stp->own->res) return MOSQ_ERR_NOMEM;
+    stp->root->res = alloc__res(pid);
+    if(!stp->root->res) return MOSQ_ERR_NOMEM;
+    stp->distance = 0;
     
     db->stp = stp;
     

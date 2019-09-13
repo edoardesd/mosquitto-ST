@@ -61,20 +61,20 @@ int set__pingreqcomp_payloadlen(struct mosquitto__packet *packet)
     int length = 0;
     
     /* Source */
-    if(packet->bpdu->src_address){
-        length = 2+strlen(packet->bpdu->src_address);
+    if(packet->bpdu->origin_address){
+        length = 2+strlen(packet->bpdu->origin_address);
     }else{
         length = 2;
     }
     
-    if(packet->bpdu->src_port){
-        length += 2+strlen(packet->bpdu->src_port);
+    if(packet->bpdu->origin_port){
+        length += 2+strlen(packet->bpdu->origin_port);
     }else{
         length += 2;
     }
     
-    if(packet->bpdu->src_id){
-        length += 2+strlen(packet->bpdu->src_id);
+    if(packet->bpdu->origin_id){
+        length += 2+strlen(packet->bpdu->origin_id);
     }else{
         length += 2;
     }
@@ -98,14 +98,14 @@ int set__pingreqcomp_payloadlen(struct mosquitto__packet *packet)
         length += 2;
     }
     
-    if(packet->bpdu->root_distance){
-        length += 2+strlen(packet->bpdu->root_distance);
+    if(packet->bpdu->distance){
+        length += 2+strlen(packet->bpdu->distance);
     }else{
         length += 2;
     }
     
-    if(packet->bpdu->src_pid){
-        length += 2+strlen(packet->bpdu->src_pid);
+    if(packet->bpdu->origin_pid){
+        length += 2+strlen(packet->bpdu->origin_pid);
     }else{
         length += 2;
     }
@@ -122,13 +122,13 @@ struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
     
     /* Source values */
     if(stp->own->port){
-        bpdu_pkt->src_port = convert_integer(stp->own->port);
+        bpdu_pkt->origin_port = convert_integer(stp->own->port);
     }
     if(stp->own->_id){
-        bpdu_pkt->src_id = stp->own->_id;
+        bpdu_pkt->origin_id = stp->own->_id;
     }
     if(stp->own->address){
-        bpdu_pkt->src_address = stp->own->address;
+        bpdu_pkt->origin_address = stp->own->address;
     }
     
     /* Root values */
@@ -136,19 +136,19 @@ struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
         bpdu_pkt->root_port = convert_integer(stp->root->port);
     }
     if(stp->root->_id){
-        bpdu_pkt->src_id = stp->root->_id;
+        bpdu_pkt->origin_id = stp->root->_id;
     }
     if(stp->root->address){
-        bpdu_pkt->src_address = stp->root->address;
+        bpdu_pkt->origin_address = stp->root->address;
     }
     
     /* Resources values */
-    if(stp->res->pid){
-        bpdu_pkt->src_pid = convert_integer(stp->res->pid);
+    if(stp->own->res->pid){
+        bpdu_pkt->origin_pid = convert_integer(stp->own->res->pid);
     }
     
-    if(stp->res->pid >= 0){
-        bpdu_pkt->root_distance = convert_integer(stp->root_distance);
+    if(stp->distance >= 0){
+        bpdu_pkt->distance = convert_integer(stp->distance);
     }
     
     return bpdu_pkt;

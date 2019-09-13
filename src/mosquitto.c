@@ -362,7 +362,7 @@ int main(int argc, char *argv[])
 		}
 	}
     
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[STP] Stored pid %d, port: %d", int_db.stp->res->pid, int_db.stp->own->port);
+    log__printf(NULL, MOSQ_LOG_DEBUG, "[STP] Stored pid %d, port: %d", int_db.stp->own->res->pid, int_db.stp->own->port);
 #endif
 
 #ifdef WITH_SYSTEMD

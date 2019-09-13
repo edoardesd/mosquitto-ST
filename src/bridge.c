@@ -83,7 +83,6 @@ int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 
 	new_context->username = new_context->bridge->remote_username;
 	new_context->password = new_context->bridge->remote_password;
-    new_context->bridge->custom_message = NULL;
 
 #ifdef WITH_TLS
 	new_context->tls_cafile = new_context->bridge->tls_cafile;
@@ -327,9 +326,6 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 		db__messages_delete(db, context);
 	}
 
-	//read available resources
-	context->bridge->custom_message = char__pid();
-    //log__printf(NULL, MOSQ_LOG_DEBUG, "My pid is %s", context->bridge->custom_message);
     /* Move up in the bridge_new() function and create a proper function.
     */
 

@@ -158,24 +158,28 @@ struct broker__info{
     char *_id;
     char *address;
     int port;
+    struct broker__resources *res;
 };
 
 struct mosquitto__stp{
     struct broker__info *own;
     struct broker__info *root;
-    int root_distance;
-    struct broker__resources *res;
+    int distance;
 };
 
 struct mosquitto__bpdu__packet{
-    char *src_address;
-    char *src_port;
-    char *src_id;
+    char *origin_address;
+    char *origin_port;
+    char *origin_id;
+    char *origin_pid;
+
     char *root_address;
     char *root_port;
     char *root_id;
-    char *root_distance;
-    char *src_pid;
+    char *root_pid;
+    
+    char *distance;
+   
 };
 
 struct mosquitto__packet{

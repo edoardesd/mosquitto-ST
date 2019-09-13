@@ -286,20 +286,20 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
     
     /* Payload */
     /* Source */
-    if(packet->bpdu->src_address){
-        packet__write_string(packet, packet->bpdu->src_address, strlen(packet->bpdu->src_address));
+    if(packet->bpdu->origin_address){
+        packet__write_string(packet, packet->bpdu->origin_address, strlen(packet->bpdu->origin_address));
     }else{
         packet__write_uint16(packet, 0);
     }
     
-    if(packet->bpdu->src_port){
-        packet__write_string(packet, packet->bpdu->src_port, strlen(packet->bpdu->src_port));
+    if(packet->bpdu->origin_port){
+        packet__write_string(packet, packet->bpdu->origin_port, strlen(packet->bpdu->origin_port));
     }else{
         packet__write_uint16(packet, 0);
     }
     
-    if(packet->bpdu->src_id){
-        packet__write_string(packet, packet->bpdu->src_id, strlen(packet->bpdu->src_id));
+    if(packet->bpdu->origin_id){
+        packet__write_string(packet, packet->bpdu->origin_id, strlen(packet->bpdu->origin_id));
     }else{
         packet__write_uint16(packet, 0);
     }
@@ -324,16 +324,16 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
     }
 
     /* Distance */
-    if(packet->bpdu->root_distance){
-        packet__write_string(packet, packet->bpdu->root_distance, strlen(packet->bpdu->root_distance));
+    if(packet->bpdu->distance){
+        packet__write_string(packet, packet->bpdu->distance, strlen(packet->bpdu->distance));
     }else{
         packet__write_uint16(packet, 100);
         //TODO fix root distance lower limit
     }
 
     /* Resources */
-    if(packet->bpdu->src_pid){
-        packet__write_string(packet, packet->bpdu->src_pid, strlen(packet->bpdu->src_pid));
+    if(packet->bpdu->origin_pid){
+        packet__write_string(packet, packet->bpdu->origin_pid, strlen(packet->bpdu->origin_pid));
     }else{
         packet__write_uint16(packet, 0);
     }
