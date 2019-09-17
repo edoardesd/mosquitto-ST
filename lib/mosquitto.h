@@ -65,6 +65,14 @@ extern "C" {
 #define MOSQ_LOG_INTERNAL		0x80000000
 #define MOSQ_LOG_ALL			0x7FFFFFFF
 
+/* Port Values */
+enum port_st_t {
+    NO_PORT = -1,
+    BLOCKED_PORT = 0,
+    DESIGNATED_PORT = 1,
+    ROOT_PORT = 2,
+};
+    
 /* Error values */
 enum mosq_err_t {
 	MOSQ_ERR_AUTH_CONTINUE = -4,
