@@ -319,6 +319,9 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 	context->in_packet.payload = NULL;
 	context->ping_t = 0;
 	context->bridge->lazy_reconnect = false;
+    if(context->bridge->port_status < 0){
+        context->bridge->port_status = NO_PORT;
+    }
 	bridge__packet_cleanup(context);
 	db__message_reconnect_reset(db, context);
 
@@ -337,7 +340,7 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 	for(i=0; i<context->bridge->topic_count; i++){
 		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
-			log__printf(NULL, MOSQ_LOG_DEBUG, "[BRIDGE] %s creates a local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
+			log__printf(NULL, MOSQ_LOG_NOTICE, "[BRIDGE] %s trying to create a local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
 			if(sub__add(db,
 						context,
 						context->bridge->topics[i].local_topic,

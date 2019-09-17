@@ -71,6 +71,7 @@ enum port_st_t {
     BLOCKED_PORT = 0,
     DESIGNATED_PORT = 1,
     ROOT_PORT = 2,
+    NO_CHANGE = 3,
 };
     
 /* Error values */

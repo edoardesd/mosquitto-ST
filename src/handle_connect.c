@@ -476,7 +476,7 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
 		rc = 1;
 		goto handle_connect_error;
 	}
-    log__printf(NULL, MOSQ_LOG_DEBUG, "connect flag %u", connect_flags);
+    //log__printf(NULL, MOSQ_LOG_DEBUG, "connect flag %u", connect_flags); TODO Fix all the flags
 
 	if(context->protocol == mosq_p_mqtt311 || context->protocol == mosq_p_mqtt5){
 		if((connect_flags & 0x01) != 0x00){
@@ -687,14 +687,10 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
             goto handle_connect_error;
         }
         
-        log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Source_address: %s, source_port: %s, source_id: %s", recv_packet->origin_address, recv_packet->origin_port, recv_packet->origin_id);
-        log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Root_address: %s, root_port: %s, root_id: %s", recv_packet->root_address, recv_packet->root_port, recv_packet->root_id);
-        log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] Source_pid: %s, root_distance: %s", recv_packet->origin_pid, recv_packet->distance);
+        log__printf(NULL, MOSQ_LOG_DEBUG, "[BPDU] [r(%s, %s), d(%s), o(%s, %s)]", recv_packet->root_port, recv_packet->root_pid, recv_packet->distance, recv_packet->origin_port, recv_packet->origin_pid);
         
         /* Store packet fields */
-#ifdef WITH_BRIDGE
-        log__printf(NULL, MOSQ_LOG_DEBUG, "bridge? %d", db->config->bridges->addresses->port);
-        
+#ifdef WITH_BRIDGE        
         if(update__stp_properties(db, db->config->bridges, recv_packet)){
             log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
         }

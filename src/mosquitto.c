@@ -355,14 +355,15 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef WITH_BRIDGE
+    init_list(&(config.bridges->block_ports), "BLOCK");
+    init_list(&(config.bridges->designated_ports), "Designated");
+    init_list(&(config.bridges->root_ports), "Root");
 	for(i=0; i<config.bridge_count; i++){
 		if(bridge__new(&int_db, &(config.bridges[i]))){
 			log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Unable to connect to bridge %s.", 
 					config.bridges[i].name);
 		}
 	}
-    
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[STP] Stored pid %d, port: %d", int_db.stp->my->res->pid, int_db.stp->my->port);
 #endif
 
 #ifdef WITH_SYSTEMD

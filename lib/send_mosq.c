@@ -49,7 +49,7 @@ int send__pingreq(struct mosquitto *mosq)
 	int rc;
 	assert(mosq);
 #ifdef WITH_BROKER
-	log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PINGREQ to %s", mosq->id);
+	log__printf(NULL, MOSQ_LOG_NOTICE, "Sending PINGREQ to %s", mosq->id);
 #else
 	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending PINGREQ", mosq->id);
 #endif
@@ -343,7 +343,6 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
         packet__write_uint16(packet, 0);
     }
     
-    log__printf(mosq, MOSQ_LOG_DEBUG, "Sending PINGREQ_COMP");
     return packet__queue(mosq, packet);
 }
 #endif

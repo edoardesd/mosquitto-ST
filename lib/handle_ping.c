@@ -61,9 +61,9 @@ int handle__pingresp(struct mosquitto *mosq)
 
 	mosq->ping_t = 0; /* No longer waiting for a PINGRESP. */
 #ifdef WITH_BROKER
-	log__printf(NULL, MOSQ_LOG_DEBUG, "Received PINGRESP from %s", mosq->id);
+	log__printf(NULL, MOSQ_LOG_NOTICE, "Received PINGRESP from %s", mosq->id);
 #else
-	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s received PINGRESP", mosq->id);
+	log__printf(mosq, MOSQ_LOG_NOTICE, "Client %s received PINGRESP", mosq->id);
 #endif
 	return MOSQ_ERR_SUCCESS;
 }
@@ -103,7 +103,7 @@ int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
         }
     }else{
         /* Now we are sure that the request is from a bridged broker */
-        log__printf(NULL, MOSQ_LOG_DEBUG, "Received complex PINGREQ from %s", mosq->id);
+        log__printf(NULL, MOSQ_LOG_INFO, "Received PINGREQ COMP from %s", mosq->id);
     }
     
     
@@ -191,9 +191,7 @@ int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
         goto handle_connect_error;
     }
     
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_address: %s, source_port: %s, source_id: %s", recv_packet->origin_address, recv_packet->origin_port, recv_packet->origin_id);
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Root_address: %s, root_port: %s, root_id: %s", recv_packet->root_address, recv_packet->root_port, recv_packet->root_id);
-    log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] Source_pid: %s, root_pid: %s, root_distance: %s", recv_packet->origin_pid, recv_packet-> root_pid, recv_packet->distance);
+    //log__printf(NULL, MOSQ_LOG_DEBUG, "[PING] [r(%s, %s), d(%s), o(%s, %s)]", recv_packet->root_port, recv_packet->root_pid, recv_packet->distance, recv_packet->origin_port, recv_packet->origin_pid);    
 
      /* Store packet fields */
 #ifdef WITH_BROKER

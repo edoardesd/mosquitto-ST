@@ -355,11 +355,11 @@ struct mosquitto_msg_store_load{
 };
 
 struct mosquitto_msg_store{
-	struct mosquitto_msg_store *next;
-	struct mosquitto_msg_store *prev;
-	dbid_t db_id;
-	char *source_id;
-	char *source_username;
+    struct mosquitto_msg_store *next;
+    struct mosquitto_msg_store *prev;
+    dbid_t db_id;
+    char *source_id;
+    char *source_username;
 	struct mosquitto__listener *source_listener;
 	char **dest_ids;
 	int dest_id_count;
@@ -485,6 +485,16 @@ struct bridge_address{
 	int port;
 };
 
+typedef struct {
+    char *address;
+    int port;
+} BROKER;
+
+typedef struct port_list{
+    BROKER broker;
+    struct port_list* next;
+} PORT_LIST;
+
 struct mosquitto__bridge{
 	char *name;
 	struct bridge_address *addresses;
@@ -503,9 +513,13 @@ struct mosquitto__bridge{
 	enum mosquitto__protocol protocol_version;
 	time_t restart_t;
 
-    int port_state;
-	char *custom_message; //added by me
-
+    /* Added by me */
+    int port_status;
+	char *custom_message;
+    PORT_LIST *block_ports;
+    PORT_LIST *designated_ports;
+    PORT_LIST *root_ports;
+    
 	char *remote_clientid;
 	char *remote_username;
 	char *remote_password;

@@ -173,7 +173,7 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 		byte = byte | 0x1<<6;
 	}
     
-    log__printf(mosq, MOSQ_LOG_DEBUG, "Byte state: %u", byte);
+    //log__printf(mosq, MOSQ_LOG_DEBUG, "Byte state: %u", byte);
     
 	packet__write_byte(packet, byte);
 	packet__write_uint16(packet, keepalive);
@@ -270,7 +270,7 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
 	mosq->keepalive = keepalive;
 #ifdef WITH_BROKER
 # ifdef WITH_BRIDGE
-	log__printf(mosq, MOSQ_LOG_DEBUG, "Bridge %s sending CONNECT", clientid);
+	log__printf(mosq, MOSQ_LOG_NOTICE, "Bridge %s sending CONNECT", clientid);
 # endif
 #else
 	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending CONNECT", clientid);

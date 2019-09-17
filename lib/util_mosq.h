@@ -35,6 +35,14 @@ FILE *mosquitto__fopen(const char *path, const char *mode, bool restrict_read);
 
 #ifdef WITH_BROKER
 int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet);
+int set__ports(struct mosquitto__stp *status, int msg_root_port, int msg_root_pid, int msg_distance, int msg_port, int msg_pid);
+int init_list(PORT_LIST** head, char *type);
+void print_list(PORT_LIST* head, char *type);
+PORT_LIST* add(PORT_LIST* node, BROKER broker);
+int remove_node(PORT_LIST* head);
+int delete_root(PORT_LIST **head);
+bool in_list(PORT_LIST* head, char *address, int port);
+
 #endif
 
 #ifdef WITH_TLS
