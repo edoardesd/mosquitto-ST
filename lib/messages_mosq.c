@@ -199,7 +199,11 @@ int message__release_to_inflight(struct mosquitto *mosq, enum mosquitto_msg_dire
 					}else if(cur->msg.qos == 2){
 						cur->state = mosq_ms_wait_for_pubrec;
 					}
-					rc = send__publish(mosq, cur->msg.mid, cur->msg.topic, cur->msg.payloadlen, cur->msg.payload, cur->msg.qos, cur->msg.retain, cur->dup, NULL, NULL, 0, NULL);
+#ifdef WITH_BROKER
+					rc = send__publish(NULL, mosq, cur->msg.mid, cur->msg.topic, cur->msg.payloadlen, cur->msg.payload, cur->msg.qos, cur->msg.retain, cur->dup, NULL, NULL, 0, NULL);
+#else
+                    rc = send__publish(mosq, cur->msg.mid, cur->msg.topic, cur->msg.payloadlen, cur->msg.payload, cur->msg.qos, cur->msg.retain, cur->dup, NULL, NULL, 0, NULL);
+#endif
 					if(rc){
 						return rc;
 					}

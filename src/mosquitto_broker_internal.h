@@ -518,7 +518,8 @@ struct mosquitto__bridge{
 	char *custom_message;
     PORT_LIST *block_ports;
     PORT_LIST *designated_ports;
-    PORT_LIST *root_ports;
+    //PORT_LIST *root_ports;
+    int root_port;
     
 	char *remote_clientid;
 	char *remote_username;

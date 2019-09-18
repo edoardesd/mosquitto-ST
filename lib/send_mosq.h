@@ -28,7 +28,11 @@ int send__disconnect(struct mosquitto *mosq, uint8_t reason_code, const mosquitt
 int send__pingresp(struct mosquitto *mosq);
 int send__puback(struct mosquitto *mosq, uint16_t mid, uint8_t reason_code);
 int send__pubcomp(struct mosquitto *mosq, uint16_t mid);
+#ifdef WITH_BROKER
+int send__publish(struct mosquitto_db *db, struct mosquitto *mosq, uint16_t mid, const char *topic, uint32_t payloadlen, const void *payload, int qos, bool retain, bool dup, const mosquitto_property *cmsg_props, const mosquitto_property *store_props, uint32_t expiry_interval, char *source_id);
+#else
 int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint32_t payloadlen, const void *payload, int qos, bool retain, bool dup, const mosquitto_property *cmsg_props, const mosquitto_property *store_props, uint32_t expiry_interval, char *source_id);
+#endif
 int send__pubrec(struct mosquitto *mosq, uint16_t mid, uint8_t reason_code);
 int send__pubrel(struct mosquitto *mosq, uint16_t mid);
 int send__subscribe(struct mosquitto *mosq, int *mid, int topic_count, char *const *const topic, int topic_qos, const mosquitto_property *properties);

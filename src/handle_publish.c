@@ -192,8 +192,6 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 
 #ifdef WITH_BRIDGE
 	if(context->bridge && context->bridge->topics && context->bridge->topic_remapping){
-		log__printf(NULL, MOSQ_LOG_INFO, "with topic remapping.");
-
 		for(i=0; i<context->bridge->topic_count; i++){
 			cur_topic = &context->bridge->topics[i];
 			log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGING] Remote topic: %s, topic: %s.", cur_topic->remote_topic, topic);
@@ -298,7 +296,27 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
 	}
 
 	log__printf(NULL, MOSQ_LOG_DEBUG, "Received PUBLISH from %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", context->id, dup, qos, retain, mid, topic, (long)payloadlen);
-	
+    
+#ifdef WITH_BROKER
+    if(strstr(topic, "SYS") == NULL){
+        int broker_id;
+        broker_id = atoi(context->id);
+        log__printf(NULL, MOSQ_LOG_DEBUG, "broker id %d", broker_id);
+        if(broker_id>1){
+            log__printf(NULL, MOSQ_LOG_DEBUG, "before read block ports");
+            if(db->config->bridges->block_ports){
+                
+                PORT_LIST* current = db->config->bridges->block_ports;
+                
+                if(in_list(current, NULL, broker_id)){
+                    log__printf(NULL, MOSQ_LOG_INFO, "[RECEIVE] receive port (%d) is blocked", broker_id);
+                    goto process_bad_message;
+                }
+            }
+        }
+    }
+#endif
+    
 	if(qos > 0){
 		db__message_store_find(context, mid, &stored);
 	}

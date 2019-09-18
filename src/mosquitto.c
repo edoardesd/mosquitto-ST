@@ -259,7 +259,6 @@ int main(int argc, char *argv[])
     if(config.daemon && config.pid_file){
         pid = mosquitto__fopen(config.pid_file, "wt", false);
 		if(pid){
-            log__printf(NULL, MOSQ_LOG_INFO, "pid file?");
 			fprintf(pid, "%d", process_pid);
 			fclose(pid);
 		}else{
@@ -357,7 +356,8 @@ int main(int argc, char *argv[])
 #ifdef WITH_BRIDGE
     init_list(&(config.bridges->block_ports), "BLOCK");
     init_list(&(config.bridges->designated_ports), "Designated");
-    init_list(&(config.bridges->root_ports), "Root");
+    config.bridges->root_port = 0;
+    log__printf(NULL, MOSQ_LOG_DEBUG, "Init Root port %d", config.bridges->root_port);
 	for(i=0; i<config.bridge_count; i++){
 		if(bridge__new(&int_db, &(config.bridges[i]))){
 			log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Unable to connect to bridge %s.", 
