@@ -148,8 +148,31 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
 	return MOSQ_ERR_SUCCESS;
 }
 
-int info__init(struct mosquitto_db *db, int port, int pid){
-    
+int stp__init(struct mosquitto__stp *stp, int port, int pid)
+{
+    log__printf(NULL, MOSQ_LOG_DEBUG, "Init STP");
+    if(stp){
+        stp->distance = 0;
+        stp->my->_id = NULL;
+        stp->my->address = NULL;
+        stp->my->port = port;
+        stp->my->res->pid = pid;
+        stp->my_root->_id = NULL;
+        stp->my_root->address = NULL;
+        stp->my_root->port = port;
+        stp->my_root->res->pid = pid;
+        return MOSQ_ERR_SUCCESS;
+    }
+    return MOSQ_ERR_NOMEM;
+}
+
+void print_stp(struct mosquitto__stp *stp)
+{
+    log__printf(NULL, MOSQ_LOG_DEBUG, "d%d r(%d-%d) o(%d-%d)", stp->distance, stp->my_root->port, stp->my_root->res->pid, stp->my->port, stp->my->res->pid);
+}
+
+int info__init(struct mosquitto_db *db, int port, int pid)
+{
     struct mosquitto__stp *stp = NULL;
     stp = mosquitto__calloc(1, sizeof(struct mosquitto__stp));
     if(!stp){
@@ -165,8 +188,8 @@ int info__init(struct mosquitto_db *db, int port, int pid){
     if(!stp->my->res) return MOSQ_ERR_NOMEM;
     stp->my_root->res = alloc__res(pid);
     if(!stp->my_root->res) return MOSQ_ERR_NOMEM;
-    stp->distance = 0;
     
+    stp__init(stp, port, pid);
     db->stp = stp;
     
     return MOSQ_ERR_SUCCESS;
@@ -180,11 +203,6 @@ struct broker__info *alloc__info(int port){
         log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
         return NULL;
     }
-    /* Assign outgoing port of the broker */
-    broker->port = port;
-    broker->_id = NULL;
-    broker->address = NULL;
-    
     return broker;
 }
 
@@ -196,8 +214,7 @@ struct broker__resources *alloc__res(int pid){
         log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
         return NULL;
     }
-    res->pid = pid;
-    
+
     return res;
 }
 

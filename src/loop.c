@@ -101,6 +101,61 @@ static void temp__expire_websockets_clients(struct mosquitto_db *db)
 }
 #endif
 
+//Move in correct position
+void mosquitto_restart_stp(struct mosquitto_db *db, int disconnected_port)
+{
+#ifdef WITH_BROKER
+    int my_pid;
+    int i = 0;
+    struct mosquitto *context;
+    BROKER broker;
+    broker.port = disconnected_port;
+
+    log__printf(NULL, MOSQ_LOG_DEBUG, "disconnected broker is: %d", disconnected_port);
+
+    if(db->config->bridges){
+        log__printf(NULL, MOSQ_LOG_DEBUG, "and i'm %d", db->config->listeners->port);
+        
+        /* Clean STP values */
+        log__printf(NULL, MOSQ_LOG_DEBUG, "init aand restart stp vals");
+        my_pid = db->stp->my->res->pid;
+        
+        /* Clean ports */
+        if(disconnected_port == db->config->bridges->root_port){
+            log__printf(NULL, MOSQ_LOG_DEBUG, "Root is down! OMFG");
+            stp__init(db->stp, db->config->listeners->port, my_pid);
+            db->config->bridges->root_port = 0;
+            //TODO better algorithm -> guess the ROOT (check lower between ports)
+            db->config->bridges->designated_ports = empty_list(db->config->bridges->designated_ports);
+            db->config->bridges->block_ports = empty_list(db->config->bridges->block_ports);
+            print_list(db->config->bridges->designated_ports, "DESIGNATED");
+            print_list(db->config->bridges->block_ports, "BLOCK");
+        }
+        /* Remove disconnected port from the DP and BP lists */
+        if(in_list(db->config->bridges->designated_ports, NULL, disconnected_port)){
+            db->config->bridges->designated_ports = delete_node(db->config->bridges->designated_ports, broker);
+        }
+        if(in_list(db->config->bridges->block_ports, NULL, disconnected_port)){
+            db->config->bridges->block_ports = delete_node(db->config->bridges->block_ports, broker);
+        }
+        print_stp(db->stp);
+        log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %d", db->config->bridges->root_port);
+        print_list(db->config->bridges->designated_ports, "DESIGNATED");
+        print_list(db->config->bridges->block_ports, "BLOCK");
+
+        for(i=0; i<db->bridge_count; i++){
+            if(!db->bridges[i]) continue;
+            context = db->bridges[i];
+            log__printf(NULL, MOSQ_LOG_NOTICE, "address %s:%d", context->bridge->addresses[context->bridge->cur_address].address, context->bridge->addresses[context->bridge->cur_address].port);
+            if(context->bridge->addresses[context->bridge->cur_address].port != disconnected_port){
+                log__printf(NULL, MOSQ_LOG_NOTICE, "Sending ping request (STP) to address %s:%d", context->bridge->addresses[context->bridge->cur_address].address, context->bridge->addresses[context->bridge->cur_address].port);
+                send__pingreq(db->stp, context);
+            }
+        }
+    }
+}
+#endif
+
 int mosquitto_main_loop(struct mosquitto_db *db, mosq_sock_t *listensock, int listensock_count)
 {
 #ifdef WITH_SYS_TREE
@@ -670,6 +725,21 @@ void do_disconnect(struct mosquitto_db *db, struct mosquitto *context, int reaso
 						break;
 					case MOSQ_ERR_CONN_LOST:
 						log__printf(NULL, MOSQ_LOG_NOTICE, "Socket error on client %s, disconnecting.", id);
+                        if(context->is_bridge){
+                            if(strstr(id, "local") == NULL){ //not contains local
+                                id[4] = '\0';
+                                int my_port = (int) strtol(id, (char **)NULL, 10);
+                                log__printf(NULL, MOSQ_LOG_DEBUG, "id %d", my_port);
+//                                for (int i = 0; i<db->bridge_count; i++) {
+//                                    if(my_port == db->config->bridges[i].addresses[0].port)
+//                                                log__printf(NULL, MOSQ_LOG_NOTICE, "address %s:%d", db->config->bridges[i].local_clientid, db->config->bridges[i].addresses[0].port);
+//                                //log__printf(NULL, MOSQ_LOG_DEBUG, "context bridge??? port %d, id%s");
+//                                }
+                               // log__printf(NULL, MOSQ_LOG_NOTICE, "Disconnection from an external broker with id: %s", id);
+                                mosquitto_restart_stp(db, my_port);
+                            }
+                            
+                        }
 						break;
 					case MOSQ_ERR_AUTH:
 						log__printf(NULL, MOSQ_LOG_NOTICE, "Client %s disconnected, no longer authorised.", id);

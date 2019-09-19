@@ -652,8 +652,12 @@ void db__msg_store_compact(struct mosquitto_db *db);
 int db__message_reconnect_reset(struct mosquitto_db *db, struct mosquitto *context);
 void sys_tree__init(struct mosquitto_db *db);
 void sys_tree__update(struct mosquitto_db *db, int interval, time_t start_time);
-
+/* ============================================================
+ * Spanning Tree Protocol handling
+ * ============================================================ */
 int info__init(struct mosquitto_db *db, int port, int pid);
+int stp__init(struct mosquitto__stp *stp, int port, int pid);
+void print_stp(struct mosquitto__stp *stp);
 struct broker__resources *alloc__res(int pid);
 struct broker__info *alloc__info(int port);
 /* ============================================================
