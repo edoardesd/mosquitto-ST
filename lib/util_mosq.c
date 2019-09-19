@@ -99,38 +99,40 @@ bool in_list(PORT_LIST* head, char *address, int port)
     return false;
 }
 
-int remove_node(PORT_LIST* head)
-{
-    int temp_port = 0;
-    
-    PORT_LIST* temp = (PORT_LIST*) malloc(sizeof (PORT_LIST));
-    if (temp == NULL) {
-        return MOSQ_ERR_NOMEM;
-        //exit(EXIT_FAILURE); // no memory available
-    }
-    //temp = head;
-    if(head!=NULL){
-        log__printf(NULL, MOSQ_LOG_DEBUG, "NULL?");
-        temp_port = head->broker.port;
-        log__printf(NULL, MOSQ_LOG_DEBUG, "temp port %d", temp_port);
-        temp = head->next;
-        log__printf(NULL, MOSQ_LOG_DEBUG, "head next");
-
-        head->next = head->next->next;
+PORT_LIST* delete_node(PORT_LIST* head, BROKER broker)
+{    
+    PORT_LIST* temp, *prev;
+    temp = head;
+    if(temp != NULL && temp->broker.port == broker.port){
+        head = temp->next;
         free(temp);
+        return head;
     }
-    log__printf(NULL, MOSQ_LOG_DEBUG, "return");
-    return temp_port;
+    
+    while(temp!=NULL && temp->broker.port != broker.port){
+        prev = temp;
+        temp = temp->next;
+    }
+    
+    if(temp == NULL) return head;
+    prev->next = temp->next;
+    
+    free(temp);
+    return head;
 }
 
-int delete_root(PORT_LIST **head){
-    PORT_LIST *curr;
+PORT_LIST* empty_list(PORT_LIST *head)
+{
+    PORT_LIST* current = head;
+    PORT_LIST* next;
     
-    curr = (*head)->next;
-    free(*head);
-    *head = curr;
-
-    return 0;
+    while (current!=NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+    }
+    head = NULL;
+    return head;
 }
 
 int set__ports(struct mosquitto__stp *status, int msg_root_port, int msg_root_pid, int msg_distance, int msg_port, int msg_pid)
@@ -191,27 +193,28 @@ int set__ports(struct mosquitto__stp *status, int msg_root_port, int msg_root_pi
 }
 
 
-int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet)
+int update__stp_properties(struct mosquitto__stp *stp, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet)
 {
     BROKER temp;
     int origin_port, claimed_root_port;
     int origin_pid, root_distance;
     int claimed_root_pid;
     int old_root;
+    //TODO -> Avoid atoi
     origin_port = atoi(packet->origin_port);
     claimed_root_port = atoi(packet->root_port);
     origin_pid = atoi(packet->origin_pid);
     root_distance = atoi(packet->distance);
     claimed_root_pid = atoi(packet->root_pid);
     
-    int my_pid = db->stp->my->res->pid;
+    int my_pid = stp->my->res->pid;
     int port_next_status = NO_PORT;
     
     /* ERROR PART */
     /* Origin and node = same address */
-    if(db->stp->my->address == packet->origin_address && db->stp->my->port == origin_port){
+    if(stp->my->address == packet->origin_address && stp->my->port == origin_port){
         log__printf(NULL, MOSQ_LOG_WARNING, "Packet coming from the same address and port of the broker itself");
-        if(db->stp->my->_id == packet->origin_id){
+        if(stp->my->_id == packet->origin_id){
             log__printf(NULL, MOSQ_LOG_WARNING, "...and even the ID is the same");
         }
         return MOSQ_ERR_STP;
@@ -223,7 +226,7 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bridge *br
     }
     
     /* PORT STATUS UPDATE */
-    port_next_status = set__ports(db->stp, claimed_root_port, claimed_root_pid, root_distance, origin_port, origin_pid);
+    port_next_status = set__ports(stp, claimed_root_port, claimed_root_pid, root_distance, origin_port, origin_pid);
    
     temp.address = "NULL";
     temp.port = origin_port;
@@ -235,14 +238,14 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bridge *br
             }
             break;
         case ROOT_PORT:
-            db->stp->my_root->res->pid = claimed_root_pid;
-            db->stp->my_root->port = claimed_root_port;
-            db->stp->distance = root_distance + 1;
+            stp->my_root->res->pid = claimed_root_pid;
+            stp->my_root->port = claimed_root_port;
+            stp->distance = root_distance + 1;
             if(packet->origin_id){
-                db->stp->my_root->_id = packet->origin_id;
+                stp->my_root->_id = packet->origin_id;
             }
             if(packet->origin_address){
-                db->stp->my_root->address = packet->origin_address;
+                stp->my_root->address = packet->origin_address;
             }
             /* Add in root port list */
             log__printf(NULL, MOSQ_LOG_INFO, "Port %d is ROOT", temp.port);
@@ -271,11 +274,11 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__bridge *br
         case NO_CHANGE:
             break;
         case NO_PORT:
-            log__printf(NULL, MOSQ_LOG_WARNING, "NO PORT error, impossible to have %d without port.", db->stp->my->port);
+            log__printf(NULL, MOSQ_LOG_WARNING, "NO PORT error, impossible to have %d without port.", stp->my->port);
             return MOSQ_ERR_STP;
             break;
         default:
-            log__printf(NULL, MOSQ_LOG_WARNING, "Wrong port status for %d.", db->stp->my->port);
+            log__printf(NULL, MOSQ_LOG_WARNING, "Wrong port status for %d.", stp->my->port);
             return MOSQ_ERR_STP;
             break;
     }
