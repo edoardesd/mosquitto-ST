@@ -195,7 +195,7 @@ int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
 
      /* Store packet fields */
 #ifdef WITH_BROKER
-    if(update__stp_properties(db, db->config->bridges, recv_packet)){
+    if(update__stp_properties(db->stp, db->config->bridges, recv_packet)){
         log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
     }
 #endif

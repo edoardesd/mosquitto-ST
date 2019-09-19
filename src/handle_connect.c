@@ -689,9 +689,9 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
         
         log__printf(NULL, MOSQ_LOG_DEBUG, "[BPDU] [r(%s, %s), d(%s), o(%s, %s)]", recv_packet->root_port, recv_packet->root_pid, recv_packet->distance, recv_packet->origin_port, recv_packet->origin_pid);
         
-        /* Store packet fields */
+        /* Store packet fields */ //TODO move down in the connect correct
 #ifdef WITH_BRIDGE        
-        if(update__stp_properties(db, db->config->bridges, recv_packet)){
+        if(update__stp_properties(db->stp, db->config->bridges, recv_packet)){
             log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
         }
 #endif
