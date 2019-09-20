@@ -130,8 +130,8 @@ struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
     if(stp->my->port){
         bpdu_pkt->origin_port = convert_integer(stp->my->port);
     }
-    if(stp->my->_id){
-        bpdu_pkt->origin_id = stp->my->_id;
+    if(stp->my_id){
+        bpdu_pkt->origin_id = stp->my_id;
     }
     if(stp->my->address){
         bpdu_pkt->origin_address = stp->my->address;
@@ -141,8 +141,8 @@ struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
     if(stp->my_root->port){
         bpdu_pkt->root_port = convert_integer(stp->my_root->port);
     }
-    if(stp->my_root->_id){
-        bpdu_pkt->origin_id = stp->my_root->_id;
+    if(stp->root_id){
+        bpdu_pkt->root_id = stp->root_id;
     }
     if(stp->my_root->address){
         bpdu_pkt->origin_address = stp->my_root->address;

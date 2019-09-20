@@ -161,10 +161,9 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
                 log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] fwd_port(%d) != src_id (%d) --> PUBLISH allowed", address_port, src_id);
             }
             
-            log__printf(NULL, MOSQ_LOG_INFO, "ADDRESS PORT %d", address_port);
+            log__printf(NULL, MOSQ_LOG_INFO, "\nROOT PORT %d", db->config->bridges->root_port);
             print_list(db->config->bridges->block_ports, "BLOCK from send");
             print_list(db->config->bridges->designated_ports, "DES from send");
-            log__printf(NULL, MOSQ_LOG_INFO, "ROOT PORT %d", db->config->bridges->root_port);
             //print_list(db->config->bridges->root_ports, "ROOT from send");
 
             if(in_list(db->config->bridges->block_ports, NULL, address_port)){
@@ -181,12 +180,9 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
         }
         else{
             log__printf(NULL, MOSQ_LOG_DEBUG, "NO ADDRESS PORT ERROR %d", address_port);
+            return MOSQ_ERR_SUCCESS;
         }
     }
-//    if(strstr(mosq->id, "0000") != NULL){
-//        log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH to itself %s", mosq->id);
-//        return MOSQ_ERR_SUCCESS;
-//    }
 #endif
     log__printf(NULL, MOSQ_LOG_DEBUG, "Sending PUBLISH number 2 to %s (d%d, q%d, r%d, m%d, '%s', ... (%ld bytes))", mosq->id, dup, qos, retain, mid, topic, (long)payloadlen);
     

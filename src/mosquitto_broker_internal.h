@@ -417,6 +417,7 @@ struct mosquitto__acl_user{
 
 struct mosquitto_db{
 	dbid_t last_db_id;
+    char *ip_address;
 	struct mosquitto__subhier *subs;
 	struct mosquitto__unpwd *unpwd;
 	struct mosquitto__unpwd *psk_id;
@@ -656,8 +657,8 @@ void sys_tree__update(struct mosquitto_db *db, int interval, time_t start_time);
  * Spanning Tree Protocol handling
  * ============================================================ */
 int info__init(struct mosquitto_db *db, int port, int pid);
-int stp__init(struct mosquitto__stp *stp, int port, int pid);
-void print_stp(struct mosquitto__stp *stp);
+//int stp__init(struct mosquitto__stp *stp, int port, int pid);
+//void print_stp(struct mosquitto__stp *stp);
 struct broker__resources *alloc__res(int pid);
 struct broker__info *alloc__info(int port);
 /* ============================================================

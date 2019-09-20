@@ -55,6 +55,7 @@ Contributors:
 #include "sys_tree.h"
 #include "time_mosq.h"
 #include "util_mosq.h"
+#include "stp_mosq.h"
 
 extern bool flag_reload;
 #ifdef WITH_PERSISTENCE
@@ -123,7 +124,8 @@ void mosquitto_restart_stp(struct mosquitto_db *db, int disconnected_port)
         /* Clean ports */
         if(disconnected_port == db->config->bridges->root_port){
             log__printf(NULL, MOSQ_LOG_DEBUG, "Root is down! OMFG");
-            stp__init(db->stp, db->config->listeners->port, my_pid);
+            //check new init
+            db->stp=stp__init(db->stp, create_full_hostname(db->ip_address, db->config->listeners->port), db->config->listeners->port, my_pid);
             db->config->bridges->root_port = 0;
             //TODO better algorithm -> guess the ROOT (check lower between ports)
             db->config->bridges->designated_ports = empty_list(db->config->bridges->designated_ports);

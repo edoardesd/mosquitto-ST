@@ -25,7 +25,7 @@ void check_hostname(int hostname)
 {
     if (hostname == -1)
     {
-        perror("gethostname");
+        log__printf(NULL, MOSQ_LOG_ERR, "Can't get the hostname.");
         exit(1);
     }
 }
@@ -35,23 +35,22 @@ void check_hostbuffer(struct hostent * hostentry)
 {
     if (hostentry == NULL)
     {
-        perror("gethostbyname");
+        log__printf(NULL, MOSQ_LOG_ERR, "Can't check the hostbuffer.");
         exit(1);
     }
 }
 
-/* Converts space-delimited IPv4 addresses
- * to dotted-decimal format
- */
+/* Converts space-delimited IPv4 addresses to dotted-decimal format */
 void checkIPbuffer(char *IPbuffer)
 {
     if (NULL == IPbuffer)
     {
-        perror("inet_ntoa");
+        log__printf(NULL, MOSQ_LOG_ERR, "Can't convert the ip address, inet_ntoa.");
         exit(1);
     }
 }
 
+/* Return the IP address in the network as string */
 char *get__hostIP()
 {
     char hostbuffer[256];

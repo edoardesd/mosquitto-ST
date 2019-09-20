@@ -164,6 +164,8 @@ struct broker__info{
 struct mosquitto__stp{
     struct broker__info *my;
     struct broker__info *my_root;
+    char *my_id;
+    char *root_id;
     int distance;
 };
 
