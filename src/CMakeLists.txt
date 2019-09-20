@@ -60,8 +60,10 @@ set (MOSQ_SRCS
 	../lib/utf8_mosq.c
 	websockets.c
 	will_delay.c
+	ip_addr.c
+	stp_mosq.c
 	../lib/will_mosq.c ../lib/will_mosq.h)
-
+	
 
 option(WITH_BUNDLED_DEPS "Build with bundled dependencies?" ON)
 if (WITH_BUNDLED_DEPS)
