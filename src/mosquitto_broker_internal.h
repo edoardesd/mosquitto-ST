@@ -415,6 +415,16 @@ struct mosquitto__acl_user{
 	struct mosquitto__acl *acl;
 };
 
+typedef struct {
+    char *address;
+    int port;
+} BROKER;
+
+typedef struct port_list{
+    BROKER broker;
+    struct port_list* next;
+} PORT_LIST;
+
 struct mosquitto_db{
 	dbid_t last_db_id;
     char *ip_address;
@@ -427,6 +437,10 @@ struct mosquitto_db{
 #ifdef WITH_BRIDGE
 	struct mosquitto **bridges;
     struct mosquitto__stp *stp;
+    struct mosquitto__bpdu__packet *old_bpdu;
+    PORT_LIST *blocked_ports;
+    PORT_LIST *designated_ports;
+    int root_port;
 #endif
 	struct clientid__index_hash *clientid_index_hash;
 	struct mosquitto_msg_store *msg_store;
@@ -486,16 +500,6 @@ struct bridge_address{
 	int port;
 };
 
-typedef struct {
-    char *address;
-    int port;
-} BROKER;
-
-typedef struct port_list{
-    BROKER broker;
-    struct port_list* next;
-} PORT_LIST;
-
 struct mosquitto__bridge{
 	char *name;
 	struct bridge_address *addresses;
@@ -516,11 +520,8 @@ struct mosquitto__bridge{
 
     /* Added by me */
     int port_status;
-	char *custom_message;
-    PORT_LIST *block_ports;
-    PORT_LIST *designated_ports;
-    //PORT_LIST *root_ports;
-    int root_port;
+	char *custom_message; //unused
+    struct mosquitto__bpdu__packet *last_bpdu;
     
 	char *remote_clientid;
 	char *remote_username;
