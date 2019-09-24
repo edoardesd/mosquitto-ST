@@ -21,5 +21,6 @@
 #endif
 
 int strint(char *string);
+char *convert_integer(int origin);
 
 #endif /* util_string_h */

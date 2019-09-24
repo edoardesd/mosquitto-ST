@@ -30,3 +30,16 @@ int strint(char *string)
     assert(result >= INT_MIN);
     return (int)result;
 }
+
+
+char *convert_integer(int origin)
+{
+    char *destination;
+    ssize_t bufsz;
+    
+    bufsz = snprintf(NULL, 0, "%d", origin);
+    destination = malloc(bufsz+1);
+    snprintf(destination, bufsz+1, "%d", origin);
+    
+    return destination;
+}
