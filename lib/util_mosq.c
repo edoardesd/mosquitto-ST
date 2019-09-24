@@ -61,7 +61,6 @@ Contributors:
 
 
 #ifdef WITH_BROKER
-
 struct mosquitto__bpdu__packet* init__bpdu(struct mosquitto_db *db, struct mosquitto__bpdu__packet *bpdu)
 {
     bpdu->distance = "0";
@@ -120,7 +119,7 @@ int ping_everyone_except(struct mosquitto_db *db)
         
         if(strcmp(context->bridge->addresses[context->bridge->cur_address].address, db->king_port.address) != 0 || context->bridge->addresses[context->bridge->cur_address].port != db->king_port.port){
             log__printf(NULL, MOSQ_LOG_NOTICE, "Sending NEW ROOT info to address %s:%d", context->bridge->addresses[context->bridge->cur_address].address, context->bridge->addresses[context->bridge->cur_address].port);
-            send__pingreq(db->stp, context);
+            send__pingreq(db, context);
         }
     }
     return MOSQ_ERR_SUCCESS;
@@ -161,7 +160,7 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
     }
     
     if(stp->my_root->res->pid > recv_root_pid){
-        log__printf(NULL, MOSQ_LOG_INFO, "BETTER PID");
+        log__printf(NULL, MOSQ_LOG_DEBUG, "BETTER PID");
         update_stp(stp, packet);
         //set root port
         //WHAT TO DO WITH OLD ROOT? DP?
@@ -193,7 +192,7 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
             return MOSQ_ERR_SUCCESS;
         }
         if(stp->distance > recv_distance){
-            log__printf(NULL, MOSQ_LOG_INFO, "Found a better distance to the root");
+            log__printf(NULL, MOSQ_LOG_DEBUG, "Found a better distance to the root");
             //WHAT TO DO WITH OLD ROOT? DP?
             update_stp(stp, packet);
             //set root port
@@ -223,7 +222,7 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
             }
             
             if(stp->my->res->pid > recv_origin_pid){
-                log__printf(NULL, MOSQ_LOG_INFO, "we tie but my PID is greater, i've to block");
+                log__printf(NULL, MOSQ_LOG_DEBUG, "we tie but my PID is greater, i've to block");
                 
                 db->designated_ports = find_and_delete(db->designated_ports, broker_origin);
                 
@@ -257,7 +256,7 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
                         context->port_status = DESIGNATED_PORT;
                         return MOSQ_ERR_SUCCESS;
                     }else if(stp->my->port > recv_origin_port){
-                        log__printf(NULL, MOSQ_LOG_INFO, "we tie but i'm greater, i've to block");
+                        log__printf(NULL, MOSQ_LOG_DEBUG, "we tie but i'm greater, i've to block");
                         //TODO set block
                         db->designated_ports = find_and_delete(db->designated_ports, broker_origin);
                         
@@ -270,7 +269,7 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
                         return MOSQ_ERR_STP;
                     }
                 }else{
-                    log__printf(NULL, MOSQ_LOG_INFO, "we tie again but i'm greater address, i've to block");
+                    log__printf(NULL, MOSQ_LOG_DEBUG, "we tie again but i'm greater address, i've to block");
                     db->designated_ports = find_and_delete(db->designated_ports, broker_origin);
                     
                     if(!in_list(db->blocked_ports, broker_origin)){
@@ -289,9 +288,7 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
 bool check_convergence(struct mosquitto_db *db, PORT_LIST *old_des, PORT_LIST *old_block, BROKER old_k)
 {
     if(are_identical(db->designated_ports, old_des) && are_identical(db->blocked_ports, old_block)){
-        log__printf(NULL, MOSQ_LOG_DEBUG, "Two lists are identical");
         if(strcmp(db->king_port.address, old_k.address) == 0 && db->king_port.port == old_k.port){
-            log__printf(NULL, MOSQ_LOG_DEBUG, "the two states are identical");
             return true;
         }
     }
@@ -303,7 +300,9 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, 
 {
     struct mosquitto__bpdu__packet *stored_bpdu = NULL;
     struct mosquitto__bridge *context = NULL;
+    bool old_convergence = false;
     int recv_origin_port;
+    bool conv_reached = false;
     
     recv_origin_port = strint(packet->origin_port);
     
@@ -320,11 +319,7 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, 
     
     old_designated = copy_list(db->designated_ports);
     old_blocked = copy_list(db->blocked_ports);
-
-    log__printf(NULL, MOSQ_LOG_DEBUG, "----- OLD LISTS -----");
-    log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d",old_king.address, old_king.port);
-    print_list(old_designated, "DESIGNATED");
-    print_list(old_blocked, "BLOCK");
+    old_convergence = db->convergence;
     
     for(int i=0; i<db->config->bridge_count; i++){
         stored_bpdu = find_bridge(db, packet, recv_origin_port, i);
@@ -340,12 +335,21 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, 
                 print_list(db->blocked_ports, "BLOCK");
                 
                 if(check_convergence(db, old_designated, old_blocked, old_king)){
-                    log__printf(NULL, MOSQ_LOG_INFO, "Convergence REACHED");
                     db->convergence = true;
                 }else{
                     db->convergence = false;
                 }
-                
+                if(old_convergence && db->convergence){
+                    conv_reached = true;
+                    for(int i=0; i<db->config->bridge_count; i++){
+                        if(!db->config->bridges[i].is_connected){
+                            conv_reached = false;
+                        }
+                    }
+                    if(conv_reached){
+                        log__printf(NULL, MOSQ_LOG_INFO, "Convergence REACHED");
+                    }
+                }
                 return MOSQ_ERR_SUCCESS;
             }
         }
@@ -390,7 +394,7 @@ int mosquitto__check_keepalive(struct mosquitto *mosq)
 
 		if(mosq->state == mosq_cs_connected && mosq->ping_t == 0){
 #ifdef WITH_BROKER
-			send__pingreq(db->stp, mosq);
+			send__pingreq(db, mosq);
 #else
             send__pingreq(mosq);
 #endif

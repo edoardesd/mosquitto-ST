@@ -125,10 +125,6 @@ int mosquitto_restart_stp(struct mosquitto_db *db, struct bridge_address *failed
         db->king_port.address = "";
         db->king_port.port = 0;
         
-        log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d", db->king_port.address, db->king_port.port);
-        print_list(db->designated_ports, "DESIGNATED");
-        print_list(db->blocked_ports, "BLOCK");
-        
         for(i=0; i<db->bridge_count; i++){
             if(!db->bridges[i]) continue;
             context = db->bridges[i];
@@ -144,7 +140,7 @@ int mosquitto_restart_stp(struct mosquitto_db *db, struct bridge_address *failed
             db->designated_ports = add(db->designated_ports, broker);
         
             log__printf(NULL, MOSQ_LOG_NOTICE, "Sending ping request (STP) to address %s:%d", context->bridge->addresses[context->bridge->cur_address].address, context->bridge->addresses[context->bridge->cur_address].port);
-            send__pingreq(db->stp, context);
+            send__pingreq(db, context);
             
         }
         log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d", db->king_port.address, db->king_port.port);

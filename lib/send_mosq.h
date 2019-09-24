@@ -39,7 +39,7 @@ int send__subscribe(struct mosquitto *mosq, int *mid, int topic_count, char *con
 int send__unsubscribe(struct mosquitto *mosq, int *mid, int topic_count, char *const *const topic, const mosquitto_property *properties);
 
 #ifdef WITH_BROKER
-int send__pingreq(struct mosquitto__stp *stp, struct mosquitto *mosq);
+int send__pingreq(struct mosquitto_db *db, struct mosquitto *mosq);
 int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_t command);
 #else
 int send__pingreq(struct mosquitto *mosq);

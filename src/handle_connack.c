@@ -44,6 +44,14 @@ int handle__connack(struct mosquitto_db *db, struct mosquitto *context)
 	if(packet__read_byte(&context->in_packet, &connect_acknowledge)) return 1;
 	if(packet__read_byte(&context->in_packet, &reason_code)) return 1;
 
+    for(i=0; i<db->bridge_count; i++){
+        if(!db->bridges[i]) continue;
+        if(strcmp(context->id, db->bridges[i]->bridge->local_clientid) == 0){
+            db->bridges[i]->bridge->is_connected = true;
+        }
+    }
+    
+    
 	if(context->protocol == mosq_p_mqtt5){
 		rc = property__read_all(CMD_CONNACK, &context->in_packet, &properties);
 		if(rc) return rc;

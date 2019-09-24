@@ -41,16 +41,32 @@ Contributors:
 
 
 #ifdef WITH_BROKER
-int send__pingreq(struct mosquitto__stp *stp, struct mosquitto *mosq)
+int send__pingreq(struct mosquitto_db *db, struct mosquitto *mosq)
 #else
 int send__pingreq(struct mosquitto *mosq)
 #endif
 {
+    struct mosquitto__bridge * context;
 	int rc;
+    bool send_simple = false;
 	assert(mosq);
 #ifdef WITH_BROKER
-	log__printf(NULL, MOSQ_LOG_NOTICE, "Sending PINGREQ COMP to %s", mosq->id);
-    rc = send__pingreqcomp(stp, mosq, CMD_PINGREQ);
+    for(int i = 0; i<db->config->bridge_count; i++){
+        context = &db->config->bridges[i];
+        if(strcmp(context->local_clientid, mosq->id) == 0){
+            if(strcmp(context->addresses->address, db->king_port.address) == 0 && context->addresses->port == db->king_port.port){
+                log__printf(NULL, MOSQ_LOG_NOTICE, "Sending PINGREQ SIMPLE to %s addr %s:%d king %s:%d", mosq->id, context->addresses->address, context->addresses->port, db->king_port.address, db->king_port.port);
+                send_simple = true;
+            }
+        }
+    }
+    if(!send_simple){
+        log__printf(NULL, MOSQ_LOG_NOTICE, "Sending PINGREQ COMP to %s", mosq->id);
+        rc = send__pingreqcomp(db->stp, mosq, CMD_PINGREQ);
+    }else{
+        log__printf(NULL, MOSQ_LOG_NOTICE, "Sending PINGREQ SIMPLE to %s", mosq->id);
+        rc = send__simple_command(mosq, CMD_PINGREQ);
+    }
 #else
 	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending PINGREQ", mosq->id);
     rc = send__simple_command(mosq, CMD_PINGREQ);

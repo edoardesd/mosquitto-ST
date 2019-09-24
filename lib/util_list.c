@@ -71,7 +71,7 @@ PORT_LIST* delete_node(PORT_LIST* head, BROKER brk)
         if(strcmp(temp->broker.address, brk.address) == 0 && temp->broker.port == brk.port){
             head = temp->next;
             free(temp);
-            log__printf(NULL, MOSQ_LOG_INFO, "Broker %s:%d, deleted!", brk.address, brk.port);
+            log__printf(NULL, MOSQ_LOG_DEBUG, "Broker %s:%d, deleted!", brk.address, brk.port);
             return head;
         }
     }

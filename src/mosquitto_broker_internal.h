@@ -517,6 +517,7 @@ struct mosquitto__bridge{
     int port_status;
 	char *custom_message; //unused
     struct mosquitto__bpdu__packet *last_bpdu;
+    bool is_connected;
     
 	char *remote_clientid;
 	char *remote_username;
