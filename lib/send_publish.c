@@ -36,6 +36,7 @@ Contributors:
 #include "property_mosq.h"
 #include "send_mosq.h"
 #include "util_mosq.h"
+#include "util_list.h"
 
 #ifdef WITH_BROKER
 int send__publish(struct mosquitto_db *db, struct mosquitto *mosq, uint16_t mid, const char *topic, uint32_t payloadlen, const void *payload, int qos, bool retain, bool dup, const mosquitto_property *cmsg_props, const mosquitto_property *store_props, uint32_t expiry_interval, char *source_id)
@@ -55,6 +56,9 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
 	char *topic_temp = NULL;
     int address_port = 0;
     int src_id = 0;
+    BROKER broker;
+    
+    
     if(strlen(source_id)>5){
         char *last = &source_id[strlen(source_id)- 5];
         strcpy(source_id, last);
@@ -151,35 +155,37 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
     //checking ports state
     if(mosq->bridge){
         if(mosq->bridge->addresses){
-            address_port = mosq->bridge->addresses->port;
+            broker.address = mosq->bridge->addresses->address;
+            broker.port = mosq->bridge->addresses->port;
             
-            if(address_port == src_id){
-                log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] fwd_port(%d) == src_id (%d) --> DON'T forward packets", address_port, src_id);
+            if(broker.port == src_id){
+                //log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] fwd_port(%d) == src_id (%d) --> DON'T forward packets", broker.port, src_id);
                 return MOSQ_ERR_SUCCESS;
             }
             else{
-                log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] fwd_port(%d) != src_id (%d) --> PUBLISH allowed", address_port, src_id);
+                //log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] fwd_port(%d) != src_id (%d) --> PUBLISH allowed", broker.port, src_id);
             }
             
-            log__printf(NULL, MOSQ_LOG_INFO, "\nROOT PORT %d", db->config->bridges->root_port);
-            print_list(db->config->bridges->block_ports, "BLOCK from send");
-            print_list(db->config->bridges->designated_ports, "DES from send");
+            print_list(db->blocked_ports, "BLOCK from send");
+            print_list(db->designated_ports, "DES from send");
+            log__printf(NULL, MOSQ_LOG_INFO, "ROOT PORT %s:%d", db->king_port.address, db->king_port.port);
+
             //print_list(db->config->bridges->root_ports, "ROOT from send");
 
-            if(in_list(db->config->bridges->block_ports, NULL, address_port)){
-                log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] port (%d) is blocked", address_port);
+            if(in_list(db->blocked_ports, broker)){
+                log__printf(NULL, MOSQ_LOG_INFO, "[BRIDGE] port (%d) is blocked", broker.port);
                 return MOSQ_ERR_SUCCESS;
             }else{
                 log__printf(NULL, MOSQ_LOG_INFO, "not blocked");
                 }
-            if(in_list(db->config->bridges->designated_ports, NULL, address_port) || address_port == db->config->bridges->root_port){
-                log__printf(NULL, MOSQ_LOG_INFO, "Forward to %d", address_port);
+            if(in_list(db->designated_ports, broker) || (strcmp(broker.address, db->king_port.address) == 0 && broker.port == db->king_port.port)){
+                log__printf(NULL, MOSQ_LOG_INFO, "Forward to %d", broker.port);
             }else{
                 log__printf(NULL, MOSQ_LOG_INFO, "Why here?");
             }
         }
         else{
-            log__printf(NULL, MOSQ_LOG_DEBUG, "NO ADDRESS PORT ERROR %d", address_port);
+            log__printf(NULL, MOSQ_LOG_DEBUG, "NO ADDRESS PORT ERROR %d", broker.port);
             return MOSQ_ERR_SUCCESS;
         }
     }

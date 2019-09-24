@@ -118,7 +118,7 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
         packet->bpdu = packet__write_bpdu(stp);
         if(!packet->bpdu) return MOSQ_ERR_NOMEM;
         
-        /*add to the current length the fields of the STP */
+        /* Add to the current length the fields of the STP */
         payloadlen += set__payloadlen(packet);
     }
 
@@ -215,15 +215,8 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
         }else{
             packet__write_uint16(packet, 0);
         }
-        
         if(packet->bpdu->origin_port){
             packet__write_string(packet, packet->bpdu->origin_port, strlen(packet->bpdu->origin_port));
-        }else{
-            packet__write_uint16(packet, 0);
-        }
-        
-        if(packet->bpdu->origin_id){
-            packet__write_string(packet, packet->bpdu->origin_id, strlen(packet->bpdu->origin_id));
         }else{
             packet__write_uint16(packet, 0);
         }
@@ -234,15 +227,8 @@ int send__connect(struct mosquitto__stp *stp, struct mosquitto *mosq, uint16_t k
         }else{
             packet__write_uint16(packet, 0);
         }
-        
         if(packet->bpdu->root_port){
             packet__write_string(packet, packet->bpdu->root_port, strlen(packet->bpdu->root_port));
-        }else{
-            packet__write_uint16(packet, 0);
-        }
-        
-        if(packet->bpdu->root_id){
-            packet__write_string(packet, packet->bpdu->root_id, strlen(packet->bpdu->root_id));
         }else{
             packet__write_uint16(packet, 0);
         }
