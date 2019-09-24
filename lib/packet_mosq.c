@@ -34,6 +34,7 @@ Contributors:
 #include "net_mosq.h"
 #include "packet_mosq.h"
 #include "read_handle.h"
+#include "util_string.h"
 #ifdef WITH_BROKER
 #  include "sys_tree.h"
 #  include "send_mosq.h"
@@ -43,18 +44,6 @@ Contributors:
 #  define G_MSGS_SENT_INC(A)
 #  define G_PUB_MSGS_SENT_INC(A)
 #endif
-
-char *convert_integer(int origin)
-{
-    char *destination;
-    ssize_t bufsz;
-    
-    bufsz = snprintf(NULL, 0, "%d", origin);
-    destination = malloc(bufsz+1);
-    snprintf(destination, bufsz+1, "%d", origin);
-    
-    return destination;
-}
 
 int set__payloadlen(struct mosquitto__packet *packet)
 {
@@ -73,12 +62,6 @@ int set__payloadlen(struct mosquitto__packet *packet)
         length += 2;
     }
     
-    if(packet->bpdu->origin_id){
-        length += 2+strlen(packet->bpdu->origin_id);
-    }else{
-        length += 2;
-    }
-    
     /* Root */
     if(packet->bpdu->root_address){
         length += 2+strlen(packet->bpdu->root_address);
@@ -88,12 +71,6 @@ int set__payloadlen(struct mosquitto__packet *packet)
     
     if(packet->bpdu->root_port){
         length += 2+strlen(packet->bpdu->root_port);
-    }else{
-        length += 2;
-    }
-    
-    if(packet->bpdu->root_id){
-        length += 2+strlen(packet->bpdu->root_id);
     }else{
         length += 2;
     }
@@ -130,9 +107,6 @@ struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
     if(stp->my->port){
         bpdu_pkt->origin_port = convert_integer(stp->my->port);
     }
-    if(stp->my_id){
-        bpdu_pkt->origin_id = stp->my_id;
-    }
     if(stp->my->address){
         bpdu_pkt->origin_address = stp->my->address;
     }
@@ -141,11 +115,8 @@ struct mosquitto__bpdu__packet *packet__write_bpdu(struct mosquitto__stp *stp)
     if(stp->my_root->port){
         bpdu_pkt->root_port = convert_integer(stp->my_root->port);
     }
-    if(stp->root_id){
-        bpdu_pkt->root_id = stp->root_id;
-    }
     if(stp->my_root->address){
-        bpdu_pkt->origin_address = stp->my_root->address;
+        bpdu_pkt->root_address = stp->my_root->address;
     }
     
     /* Resources values */

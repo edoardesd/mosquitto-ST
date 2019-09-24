@@ -49,14 +49,10 @@ int send__pingreq(struct mosquitto *mosq)
 	int rc;
 	assert(mosq);
 #ifdef WITH_BROKER
-	log__printf(NULL, MOSQ_LOG_NOTICE, "Sending PINGREQ to %s", mosq->id);
-#else
-	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending PINGREQ", mosq->id);
-#endif
-    
-#ifdef WITH_BROKER
+	log__printf(NULL, MOSQ_LOG_NOTICE, "Sending PINGREQ COMP to %s", mosq->id);
     rc = send__pingreqcomp(stp, mosq, CMD_PINGREQ);
 #else
+	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending PINGREQ", mosq->id);
     rc = send__simple_command(mosq, CMD_PINGREQ);
 #endif
 	if(rc == MOSQ_ERR_SUCCESS){
@@ -270,7 +266,7 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
         packet__write_string(packet, PROTOCOL_NAME, strlen(PROTOCOL_NAME));
     }
     
-    /* Check better */
+    // TODO check
     packet__write_byte(packet, version);
     byte = (true&0x1)<<1; //different (clean_session&0x1)<<1;
     
@@ -291,15 +287,8 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
     }else{
         packet__write_uint16(packet, 0);
     }
-    
     if(packet->bpdu->origin_port){
         packet__write_string(packet, packet->bpdu->origin_port, strlen(packet->bpdu->origin_port));
-    }else{
-        packet__write_uint16(packet, 0);
-    }
-    
-    if(packet->bpdu->origin_id){
-        packet__write_string(packet, packet->bpdu->origin_id, strlen(packet->bpdu->origin_id));
     }else{
         packet__write_uint16(packet, 0);
     }
@@ -310,15 +299,8 @@ int send__pingreqcomp(struct mosquitto__stp *stp, struct mosquitto *mosq, uint8_
     }else{
         packet__write_uint16(packet, 0);
     }
-    
     if(packet->bpdu->root_port){
         packet__write_string(packet, packet->bpdu->root_port, strlen(packet->bpdu->root_port));
-    }else{
-        packet__write_uint16(packet, 0);
-    }
-    
-    if(packet->bpdu->root_id){
-        packet__write_string(packet, packet->bpdu->root_id, strlen(packet->bpdu->root_id));
     }else{
         packet__write_uint16(packet, 0);
     }
