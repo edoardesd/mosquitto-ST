@@ -34,14 +34,12 @@ uint16_t mosquitto__mid_generate(struct mosquitto *mosq);
 FILE *mosquitto__fopen(const char *path, const char *mode, bool restrict_read);
 
 #ifdef WITH_BROKER
-int update__stp_properties(struct mosquitto__stp *stp, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet);
+int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet);
 int set__ports(struct mosquitto__stp *status, int msg_root_port, int msg_root_pid, int msg_distance, int msg_port, int msg_pid);
-int init_list(PORT_LIST** head, char *type);
-PORT_LIST* add(PORT_LIST* node, BROKER broker);
-PORT_LIST* delete_node(PORT_LIST* head, BROKER broker);
-PORT_LIST* empty_list(PORT_LIST *head);
-bool in_list(PORT_LIST* head, char *address, int port);
-void print_list(PORT_LIST* head, char *type);
+struct mosquitto__bpdu__packet *find_bridge(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet, int origin_port, int i);
+bool check_repeated(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet);
+struct mosquitto__bpdu__packet* init__bpdu(struct mosquitto_db *db, struct mosquitto__bpdu__packet *bpdu);
+
 #endif
 
 #ifdef WITH_TLS

@@ -45,11 +45,13 @@ set(C_SRC
 	send_mosq.c send_mosq.h
 	socks_mosq.c
 	srv_mosq.c
+	stp_mosq.c
 	thread_mosq.c
 	time_mosq.c
 	tls_mosq.c
 	utf8_mosq.c
 	util_mosq.c util_topic.c util_mosq.h
+	util_string.c util_list.c
 	will_mosq.c will_mosq.h)
 
 set (LIBRARIES ${OPENSSL_LIBRARIES} ${PTHREAD_LIBRARIES})

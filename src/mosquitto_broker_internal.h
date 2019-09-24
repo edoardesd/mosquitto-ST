@@ -440,7 +440,7 @@ struct mosquitto_db{
     struct mosquitto__bpdu__packet *old_bpdu;
     PORT_LIST *blocked_ports;
     PORT_LIST *designated_ports;
-    int root_port;
+    BROKER king_port;
 #endif
 	struct clientid__index_hash *clientid_index_hash;
 	struct mosquitto_msg_store *msg_store;
@@ -477,12 +477,6 @@ enum mosquitto_bridge_start_type{
 	bst_lazy = 1,
 	bst_manual = 2,
 	bst_once = 3
-};
-
-enum mosquitto_bridge_port_state{
-    block_port = 0,
-    king_port = 1,
-    designated_port = 2,
 };
 
 struct mosquitto__bridge_topic{
@@ -522,6 +516,7 @@ struct mosquitto__bridge{
     int port_status;
 	char *custom_message; //unused
     struct mosquitto__bpdu__packet *last_bpdu;
+    bool convergence;
     
 	char *remote_clientid;
 	char *remote_username;

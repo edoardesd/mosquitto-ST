@@ -32,36 +32,8 @@ struct mosquitto__stp* stp__init(struct mosquitto__stp *stp, char* hostname, int
 
 void print_stp(struct mosquitto__stp *stp)
 {
-    log__printf(NULL, MOSQ_LOG_INFO, "d%d r(%d-%d) o(%d-%d)", stp->distance, stp->my_root->port, stp->my_root->res->pid, stp->my->port, stp->my->res->pid);
+    log__printf(NULL, MOSQ_LOG_NOTICE, "d%d r(%d-%d) o(%d-%d)", stp->distance, stp->my_root->port, stp->my_root->res->pid, stp->my->port, stp->my->res->pid);
 }
-
-#ifdef WITH_BROKER
-struct mosquitto__bpdu__packet* find_bridge(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet, int origin_port, int i)
-{
-    struct mosquitto__bpdu__packet *stored_bpdu;
-    
-    if(strcmp(db->config->bridges[i].addresses->address, packet->origin_address) == 0 && (db->config->bridges[i].addresses->port == origin_port)){
-        log__printf(NULL, MOSQ_LOG_DEBUG, "Received msg from %s:%s and i found it in the bridges", packet->origin_address, packet->origin_port);
-        stored_bpdu = db->config->bridges[i].last_bpdu;
-        log__printf(NULL, MOSQ_LOG_DEBUG, "Reading the stored bpdu... r%s:%s, d%s, o:%s:%s", stored_bpdu->root_address, stored_bpdu->root_port, stored_bpdu->distance, stored_bpdu->origin_address, stored_bpdu->origin_port);
-        
-        return stored_bpdu;
-    }
-    return NULL;
-}
-
-bool check_repeated(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet){
-    if(strcmp(stored_bpdu->root_address, packet->root_address) == 0 && strcmp(stored_bpdu->root_port, packet->root_port) == 0 && strcmp(stored_bpdu->root_pid, packet->root_pid) == 0){
-        if(strcmp(stored_bpdu->origin_address, packet->origin_address) == 0 && strcmp(stored_bpdu->origin_port, packet->origin_port) == 0 && strcmp(stored_bpdu->origin_pid, packet->origin_pid)==0){
-            if(strcmp(stored_bpdu->distance, packet->distance) == 0){
-                log__printf(NULL, MOSQ_LOG_DEBUG, "Repeated information");
-                return true;
-            }
-        }
-    }
-    return false;
-}
-#endif
 
 int update_bpdu(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet)
 {
@@ -73,9 +45,7 @@ int update_bpdu(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__b
         stored_bpdu->origin_pid = packet->origin_pid;
         stored_bpdu->origin_address = packet->origin_address;
         stored_bpdu->origin_port = packet->origin_port;
-        
-        log__printf(NULL, MOSQ_LOG_DEBUG, "NEW stored bpdu... r%s:%s, d%s, o:%s:%s", stored_bpdu->root_address, stored_bpdu->root_port, stored_bpdu->distance, stored_bpdu->origin_address, stored_bpdu->origin_port);
-        
+                
         return 1;
     }
     return 0;
@@ -88,7 +58,6 @@ int update_stp(struct mosquitto__stp *stp, struct mosquitto__bpdu__packet *packe
         stp->my_root->address = packet->root_address;
         stp->my_root->port = strint(packet->root_port);
         stp->my_root->res->pid = strint(packet->root_pid);
-        log__printf(NULL, MOSQ_LOG_DEBUG, "NEW STP... r%s:%d, d%d", stp->my_root->address, stp->my_root->port, stp->distance);
         
         return 1;
     }

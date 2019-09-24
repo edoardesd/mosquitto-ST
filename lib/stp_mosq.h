@@ -17,12 +17,12 @@
 
 struct mosquitto__stp* stp__init(struct mosquitto__stp *stp, char* hostname, int port, int pid);
 void print_stp(struct mosquitto__stp *stp);
-#ifdef WITH_BRIDGE
-struct mosquitto__bpdu__packet *find_bridge(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet, int origin_port, int i);
-bool check_repeated(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet);
-#endif
+
 void superior_update(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet, struct mosquitto__stp *stp);
 int update_bpdu(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet);
+#ifdef WITH_BROKER
+void check_old_info(struct mosquitto__stp *stp, struct mosquitto__bpdu__packet *packet,  struct mosquitto_db *db, int bridge);
+#endif
 int update_stp(struct mosquitto__stp *stp, struct mosquitto__bpdu__packet *packet);
 char *create_full_hostname(char *address, int port);
 #endif

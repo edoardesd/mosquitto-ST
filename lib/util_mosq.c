@@ -51,243 +51,284 @@ Contributors:
 #include "time_mosq.h"
 #include "tls_mosq.h"
 #include "util_mosq.h"
+#include "util_string.h"
+#include "util_list.h"
+#include "stp_mosq.h"
 
 #ifdef WITH_WEBSOCKETS
 #include <libwebsockets.h>
 #endif
 
 
-
 #ifdef WITH_BROKER
-int init_list(PORT_LIST** head, char *type)
+
+struct mosquitto__bpdu__packet* init__bpdu(struct mosquitto_db *db, struct mosquitto__bpdu__packet *bpdu)
 {
-    *head = NULL;
-    return MOSQ_ERR_SUCCESS;
+    bpdu->distance = "0";
+    bpdu->origin_address = db->ip_address;
+    bpdu->origin_port = convert_integer(db->stp->my->port);
+    bpdu->origin_pid = convert_integer(db->stp->my->res->pid);
+    bpdu->root_address = db->ip_address;
+    bpdu->root_port = convert_integer(db->stp->my->port);
+    bpdu->root_pid = convert_integer(db->stp->my->res->pid);
+    
+    return bpdu;
 }
 
-void print_list(PORT_LIST* head, char *type)
+
+struct mosquitto__bpdu__packet* find_bridge(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet, int origin_port, int i)
 {
-    PORT_LIST * temp;
-    fprintf(stdout, "List %s:", type);
-    for (temp = head; temp; temp = temp->next){
-        fprintf(stdout, " %d,", temp->broker.port);
+    struct mosquitto__bpdu__packet *stored_bpdu;
+    if(strcmp(db->config->bridges[i].addresses->address, packet->origin_address) == 0 && (db->config->bridges[i].addresses->port == origin_port)){
+        stored_bpdu = db->config->bridges[i].last_bpdu;
+        return stored_bpdu;
     }
-    fprintf(stdout, "\n");
+    return NULL;
 }
 
-PORT_LIST* add(PORT_LIST* node, BROKER broker)
-{
-    PORT_LIST* temp = (PORT_LIST*) malloc(sizeof (PORT_LIST));
-    if (temp == NULL) {
-        exit(EXIT_FAILURE);
-        //return MOSQ_ERR_NOMEM; // no memory available
-    }
-    temp->broker = broker;
-    temp->next = node;
-    node = temp;
-    log__printf(NULL, MOSQ_LOG_INFO, "Broker %d, added!", broker.port);
-    return node;
-}
-
-bool in_list(PORT_LIST* head, char *address, int port)
-{
-    PORT_LIST* current = head;
-    while(current!= NULL){
-        if(current->broker.port == port) return true;
-        current = current->next;
+bool check_repeated(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet){
+    if(strcmp(stored_bpdu->root_address, packet->root_address) == 0 && strcmp(stored_bpdu->root_port, packet->root_port) == 0 && strcmp(stored_bpdu->root_pid, packet->root_pid) == 0){
+        if(strcmp(stored_bpdu->origin_address, packet->origin_address) == 0 && strcmp(stored_bpdu->origin_port, packet->origin_port) == 0 && strcmp(stored_bpdu->origin_pid, packet->origin_pid)==0){
+            if(strcmp(stored_bpdu->distance, packet->distance) == 0){
+                log__printf(NULL, MOSQ_LOG_DEBUG, "INFO repeated");
+                return true;
+            }
+        }
     }
     return false;
 }
 
-PORT_LIST* delete_node(PORT_LIST* head, BROKER broker)
-{    
-    PORT_LIST* temp, *prev;
-    temp = head;
-    if(temp != NULL && temp->broker.port == broker.port){
-        head = temp->next;
-        free(temp);
-        return head;
-    }
+void check_old_info(struct mosquitto__stp *stp, struct mosquitto__bpdu__packet *packet,  struct mosquitto_db *db, int bridge){
     
-    while(temp!=NULL && temp->broker.port != broker.port){
-        prev = temp;
-        temp = temp->next;
-    }
-    
-    if(temp == NULL) return head;
-    prev->next = temp->next;
-    
-    free(temp);
-    return head;
-}
-
-PORT_LIST* empty_list(PORT_LIST *head)
-{
-    PORT_LIST* current = head;
-    PORT_LIST* next;
-    
-    while (current!=NULL) {
-        next = current->next;
-        free(current);
-        current = next;
-    }
-    head = NULL;
-    return head;
-}
-
-int set__ports(struct mosquitto__stp *status, int msg_root_port, int msg_root_pid, int msg_distance, int msg_port, int msg_pid)
-{
-    int my_root_port, my_root_pid;
-    int my_distance;
-    int my_port, my_pid;
-    
-    my_root_port = status->my_root->port;
-    my_root_pid = status->my_root->res->pid;
-    my_distance = status->distance;
-    my_port = status->my->port;
-    my_pid = status->my->res->pid;
-    
-    if(my_root_pid < msg_root_pid){
-        //check distance if less it's a DP else let's see
-        log__printf(NULL, MOSQ_LOG_INFO, "SET designated 1");
-        return DESIGNATED_PORT;
-    }
-    
-    if(my_root_pid == msg_root_pid){
-        if(my_distance < msg_distance){
-            if(my_pid < msg_pid){
-                log__printf(NULL, MOSQ_LOG_INFO, "SET designated 2");
-                return DESIGNATED_PORT; //not always
-            }else if(my_pid > msg_pid){
-                log__printf(NULL, MOSQ_LOG_INFO, "SET BLOCK 1");
-                return BLOCKED_PORT;
-            }else{
-                return NO_PORT;
-            }
-        } else if(my_distance > msg_distance){
-            log__printf(NULL, MOSQ_LOG_INFO, "SET ROOT 1");
-            return ROOT_PORT;
-        } else if(my_distance == msg_distance){
-            if(my_pid < msg_pid){
-                log__printf(NULL, MOSQ_LOG_INFO, "SET designated 2");
-                return DESIGNATED_PORT;
-            }else if(my_pid > msg_pid){
-                log__printf(NULL, MOSQ_LOG_INFO, "SET BLOCK 2");
-                return BLOCKED_PORT;
-            }else{
-                return NO_PORT;
-            }
-        } else{
-            log__printf(NULL, MOSQ_LOG_INFO, "SET NO 1");
-            return NO_PORT;
+    if(strcmp(stp->my_root->address, packet->root_address) == 0 && stp->my_root->port == strint(packet->root_port) && stp->my_root->res->pid == strint(packet->root_pid)){
+        if(stp->distance == strint(packet->distance)+1){
+            log__printf(NULL, MOSQ_LOG_DEBUG, "same info of before!!!");
+            db->config->bridges[bridge].convergence = true;
         }
     }
     
-    if(my_root_pid > msg_root_pid){
-        log__printf(NULL, MOSQ_LOG_INFO, "SET root 2");
-        return ROOT_PORT;
-    }
-    
-    log__printf(NULL, MOSQ_LOG_INFO, "SET NO 2");
-    return NO_PORT;
 }
 
+//int set__ports(struct mosquitto__stp *status, int msg_root_port, int msg_root_pid, int msg_distance, int msg_port, int msg_pid)
+//{
+//    int my_root_port, my_root_pid;
+//    int my_distance;
+//    int my_port, my_pid;
+//
+//    my_root_port = status->my_root->port;
+//    my_root_pid = status->my_root->res->pid;
+//    my_distance = status->distance;
+//    my_port = status->my->port;
+//    my_pid = status->my->res->pid;
+//
+//    if(my_root_pid < msg_root_pid){
+//        //check distance if less it's a DP else let's see
+//        log__printf(NULL, MOSQ_LOG_INFO, "SET designated 1");
+//        return DESIGNATED_PORT;
+//    }
+//
+//    if(my_root_pid == msg_root_pid){
+//        if(my_distance < msg_distance){
+//            if(my_pid < msg_pid){
+//                log__printf(NULL, MOSQ_LOG_INFO, "SET designated 2");
+//                return DESIGNATED_PORT; //not always
+//            }else if(my_pid > msg_pid){
+//                log__printf(NULL, MOSQ_LOG_INFO, "SET BLOCK 1");
+//                return BLOCKED_PORT;
+//            }else{
+//                return NO_PORT;
+//            }
+//        } else if(my_distance > msg_distance){
+//            log__printf(NULL, MOSQ_LOG_INFO, "SET ROOT 1");
+//            return ROOT_PORT;
+//        } else if(my_distance == msg_distance){
+//            if(my_pid < msg_pid){
+//                log__printf(NULL, MOSQ_LOG_INFO, "SET designated 2");
+//                return DESIGNATED_PORT;
+//            }else if(my_pid > msg_pid){
+//                log__printf(NULL, MOSQ_LOG_INFO, "SET BLOCK 2");
+//                return BLOCKED_PORT;
+//            }else{
+//                return NO_PORT;
+//            }
+//        } else{
+//            log__printf(NULL, MOSQ_LOG_INFO, "SET NO 1");
+//            return NO_PORT;
+//        }
+//    }
+//
+//    if(my_root_pid > msg_root_pid){
+//        log__printf(NULL, MOSQ_LOG_INFO, "SET root 2");
+//        return ROOT_PORT;
+//    }
+//
+//    log__printf(NULL, MOSQ_LOG_INFO, "SET NO 2");
+//    return NO_PORT;
+//}
 
-int update__stp_properties(struct mosquitto__stp *stp, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet)
+int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet)
 {
-    BROKER temp;
-    int origin_port, claimed_root_port;
-    int origin_pid, root_distance;
-    int claimed_root_pid;
-    int old_root;
-    //TODO -> Avoid atoi
-    origin_port = atoi(packet->origin_port);
-    claimed_root_port = atoi(packet->root_port);
-    origin_pid = atoi(packet->origin_pid);
-    root_distance = atoi(packet->distance);
-    claimed_root_pid = atoi(packet->root_pid);
+    struct mosquitto__bpdu__packet *stored_bpdu = NULL;
+    BROKER broker;
+    int recv_root_port;
+    int recv_origin_port;
+    int recv_root_pid;
+    int recv_distance;
+    int recv_origin_pid;
+    int ret;
+    recv_origin_port = strint(packet->origin_port);
+    recv_root_pid = strint(packet->root_pid);
+    recv_root_port = strint(packet->root_port);
+    recv_distance = strint(packet->distance);
+    recv_origin_pid = strint(packet->origin_pid);
     
-    int my_pid = stp->my->res->pid;
-    int port_next_status = NO_PORT;
+    log__printf(NULL, MOSQ_LOG_INFO, "r%s:%s o%s:%d", packet->root_address, packet->root_port, packet->origin_address, recv_origin_port);
     
-    /* ERROR PART */
-    /* Origin and node = same address */
-    if(stp->my->address == packet->origin_address && stp->my->port == origin_port){
-        log__printf(NULL, MOSQ_LOG_WARNING, "Packet coming from the same address and port of the broker itself");
-        if(stp->my->_id == packet->origin_id){
-            log__printf(NULL, MOSQ_LOG_WARNING, "...and even the ID is the same");
-        }
-        return MOSQ_ERR_STP;
-    }
-    
-    if(my_pid == origin_pid){
-        log__printf(NULL, MOSQ_LOG_WARNING, "Same PID/ADDRESS");
-        return MOSQ_ERR_STP;
-    }
-    
-    /* PORT STATUS UPDATE */
-    port_next_status = set__ports(stp, claimed_root_port, claimed_root_pid, root_distance, origin_port, origin_pid);
-   
-    temp.address = "NULL";
-    temp.port = origin_port;
-    switch (port_next_status) {
-        case DESIGNATED_PORT:
-            log__printf(NULL, MOSQ_LOG_INFO, "Port %d is DESIGNATED", temp.port);
-            if(!in_list(bridge->designated_ports, NULL, temp.port)){
-                bridge->designated_ports = add(bridge->designated_ports, temp);
+    for(int i=0; i<db->config->bridge_count; i++){
+        stored_bpdu = find_bridge(db, packet, recv_origin_port, i);
+        
+        
+
+        if(stored_bpdu){
+            if(!db->config->bridges[i].convergence){
+                check_old_info(stp, packet, db, i);
             }
-            break;
-        case ROOT_PORT:
-            stp->my_root->res->pid = claimed_root_pid;
-            stp->my_root->port = claimed_root_port;
-            stp->distance = root_distance + 1;
-            if(packet->origin_id){
-                stp->my_root->_id = packet->origin_id;
+            log__printf(NULL, MOSQ_LOG_DEBUG, "Convergence? %d", db->config->bridges[i].convergence);
+            
+            if(check_repeated(stored_bpdu, packet) && db->config->bridges[i].convergence){
+                log__printf(NULL, MOSQ_LOG_INFO, "Reached convergence for this broker");
+                log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d", db->king_port.address, db->king_port.port);
+                print_list(db->designated_ports, "DESIGNATED");
+                print_list(db->blocked_ports, "BLOCK");
+                return MOSQ_ERR_SUCCESS;
             }
-            if(packet->origin_address){
-                stp->my_root->address = packet->origin_address;
-            }
-            /* Add in root port list */
-            log__printf(NULL, MOSQ_LOG_INFO, "Port %d is ROOT", temp.port);
-           
-            /* Empty_list + obtain old root */
-            old_root = bridge->root_port;
-            // TODO strange cases
-            if(old_root != 0 & old_root != temp.port){ //set old root as block
-                log__printf(NULL, MOSQ_LOG_INFO, "Port %d is BLOCK", old_root);
-                if(!in_list(bridge->block_ports, NULL, old_root)){
-                    BROKER block;
-                    block.address = NULL;
-                    block.port = old_root;
-                    bridge->block_ports = add(bridge->block_ports, block);
+            
+            
+            
+            
+            broker.address = packet->origin_address;
+            broker.port = recv_origin_port;
+
+            if(stp->my_root->res->pid < recv_root_pid){
+                log__printf(NULL, MOSQ_LOG_DEBUG, "Inferior information");
+                /* Set as designated port */
+                db->blocked_ports = find_and_delete(db->blocked_ports, broker);
+                
+                if(!in_list(db->designated_ports, broker)){
+                    db->designated_ports = add(db->designated_ports, broker);
                 }
+                db->config->bridges[i].port_status = DESIGNATED_PORT;
+            }else if (stp->my_root->res->pid == recv_root_pid){
+                log__printf(NULL, MOSQ_LOG_DEBUG, "Same pid");
+                if(stp->distance < recv_distance){
+                    log__printf(NULL, MOSQ_LOG_DEBUG, "Same PID but Inferior information");
+                    /* Set as designated port */
+                    db->blocked_ports = find_and_delete(db->blocked_ports, broker);
+                    
+                    if(!in_list(db->designated_ports, broker)){
+                        db->designated_ports = add(db->designated_ports, broker);
+                    }
+                    db->config->bridges[i].port_status = DESIGNATED_PORT;
+                } else if (stp->distance == recv_distance){
+                    //another tie, check own pid first
+                    
+                    if(stp->my->res->pid < recv_origin_pid){
+                        /* Set as designated port */
+                        db->blocked_ports = find_and_delete(db->blocked_ports, broker);
+                        if(!in_list(db->designated_ports, broker)){
+                            db->designated_ports = add(db->designated_ports, broker);
+                        }
+                        db->config->bridges[i].port_status = DESIGNATED_PORT;
+                    }else if (stp->my->res->pid == recv_origin_pid){
+                        ret = strcmp(stp->my->address, packet->origin_address);
+                        if(ret < 0){
+                            /* Set as designated port */
+                            db->blocked_ports = find_and_delete(db->blocked_ports, broker);
+                            if(!in_list(db->designated_ports, broker)){
+                                db->designated_ports = add(db->designated_ports, broker);
+                            }
+                            db->config->bridges[i].port_status = DESIGNATED_PORT;
+                        }else if (ret == 0){
+                            //another tie
+                            if(stp->my->port < recv_origin_port){
+                                /* Set as designated port */
+                                db->blocked_ports = find_and_delete(db->blocked_ports, broker);
+                                if(!in_list(db->designated_ports, broker)){
+                                    db->designated_ports = add(db->designated_ports, broker);
+                                }
+                                db->config->bridges[i].port_status = DESIGNATED_PORT;
+                            }else if(stp->my->port > recv_origin_port){
+                                log__printf(NULL, MOSQ_LOG_INFO, "we tie but i'm greater, i've to block");
+                                //TODO set block
+                                db->designated_ports = find_and_delete(db->designated_ports, broker);
+                                
+                                if(!in_list(db->blocked_ports, broker)){
+                                    db->blocked_ports = add(db->blocked_ports, broker);
+                                }
+                                db->config->bridges[i].port_status = BLOCKED_PORT;
+                            }else{
+                                return MOSQ_ERR_STP;
+                            }
+                        }else{
+                            log__printf(NULL, MOSQ_LOG_INFO, "we tie again but i'm greater address, i've to block");
+                            db->designated_ports = find_and_delete(db->designated_ports, broker);
+                            
+                            if(!in_list(db->blocked_ports, broker)){
+                                db->blocked_ports = add(db->blocked_ports, broker);
+                            }
+                            
+                            db->config->bridges[i].port_status = BLOCKED_PORT;
+                        }
+                    }else{
+                        log__printf(NULL, MOSQ_LOG_INFO, "we tie but my PID is greater, i've to block");
+    
+                        db->designated_ports = find_and_delete(db->designated_ports, broker);
+                        
+                        if(!in_list(db->blocked_ports, broker)){
+                            db->blocked_ports = add(db->blocked_ports, broker);
+                        }
+                        
+                        db->config->bridges[i].port_status = BLOCKED_PORT;
+                    }
+                }else{
+                    log__printf(NULL, MOSQ_LOG_INFO, "Founded a better distance to the root");
+                    //WHAT TO DO WITH OLD ROOT? DP?
+                    update_stp(stp, packet);
+                    //set root port
+                    db->designated_ports = find_and_delete(db->designated_ports, broker);
+                    db->blocked_ports = find_and_delete(db->blocked_ports, broker);
+                    
+                    db->king_port = broker;
+                    db->config->bridges[i].port_status = ROOT_PORT;
+
+                    //TODO: send new ping to designated ports?
+                }
+            }else{
+                log__printf(NULL, MOSQ_LOG_INFO, "BETTER PID");
+                update_stp(stp, packet);
+                //set root port
+                //WHAT TO DO WITH OLD ROOT? DP?
+                db->designated_ports = find_and_delete(db->designated_ports, broker);
+                db->blocked_ports = find_and_delete(db->blocked_ports, broker);
+                
+                db->king_port = broker;
+                db->config->bridges[i].port_status = ROOT_PORT;
+                //TODO: send new ping to designated ports?
             }
-            bridge->root_port = temp.port;
-            break;
-        case BLOCKED_PORT:
-            /* Add in block port list */
-            log__printf(NULL, MOSQ_LOG_INFO, "Port %d is BLOCK", temp.port);
-            if(!in_list(bridge->block_ports, NULL, temp.port)){
-                bridge->block_ports = add(bridge->block_ports, temp);
+            
+            update_bpdu(stored_bpdu, packet);
+            for(int j=0; j<db->config->bridge_count; j++){
+                db->config->bridges[j].convergence = false;
             }
-            break;
-        case NO_CHANGE:
-            break;
-        case NO_PORT:
-            log__printf(NULL, MOSQ_LOG_WARNING, "NO PORT error, impossible to have %d without port.", stp->my->port);
-            return MOSQ_ERR_STP;
-            break;
-        default:
-            log__printf(NULL, MOSQ_LOG_WARNING, "Wrong port status for %d.", stp->my->port);
-            return MOSQ_ERR_STP;
-            break;
+            log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d", db->king_port.address, db->king_port.port);
+            print_list(db->designated_ports, "DESIGNATED");
+            print_list(db->blocked_ports, "BLOCK");
+            return MOSQ_ERR_SUCCESS;
+        }
     }
     
-    log__printf(NULL, MOSQ_LOG_INFO, "\nList ROOT: %d", bridge->root_port);
-    print_list(bridge->designated_ports, "DESIGNATED");
-    print_list(bridge->block_ports, "BLOCK");
-
-    return MOSQ_ERR_SUCCESS;
+    log__printf(NULL, MOSQ_LOG_ERR, "ERROR on update STP.");
+    return MOSQ_ERR_STP;
 }
 #endif
 

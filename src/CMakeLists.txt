@@ -54,14 +54,16 @@ set (MOSQ_SRCS
 	session_expiry.c
 	subs.c
 	sys_tree.c sys_tree.h
+	../lib/stp_mosq.c
 	../lib/time_mosq.c
 	../lib/tls_mosq.c
 	../lib/util_mosq.c ../lib/util_topic.c ../lib/util_mosq.h
 	../lib/utf8_mosq.c
+	../lib/util_string.c
+	../lib/util_list.c
 	websockets.c
 	will_delay.c
 	ip_addr.c
-	stp_mosq.c
 	../lib/will_mosq.c ../lib/will_mosq.h)
 	
 
