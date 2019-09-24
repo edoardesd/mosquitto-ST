@@ -355,10 +355,9 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef WITH_BRIDGE
-    log__printf(NULL, MOSQ_LOG_DEBUG, "Init Root port %d", config.bridges->root_port);
 	for(i=0; i<config.bridge_count; i++){
 		if(bridge__new(&int_db, &(config.bridges[i]))){
-			log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Unable to connect to bridge %s.", 
+			log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Unable to connect to bridge %s.",
 					config.bridges[i].name);
 		}
 	}

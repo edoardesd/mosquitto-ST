@@ -648,10 +648,6 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
             rc = 1;
             goto handle_connect_error;
         }
-        if(packet__read_string(&context->in_packet, &recv_packet->origin_id, &slen)){
-            rc = 1;
-            goto handle_connect_error;
-        }
         
         /* Root properties */
         if(packet__read_string(&context->in_packet, &recv_packet->root_address, &slen)){
@@ -659,10 +655,6 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
             goto handle_connect_error;
         }
         if(packet__read_string(&context->in_packet, &recv_packet->root_port, &slen)){
-            rc = 1;
-            goto handle_connect_error;
-        }
-        if(packet__read_string(&context->in_packet, &recv_packet->root_id, &slen)){
             rc = 1;
             goto handle_connect_error;
         }
@@ -687,12 +679,12 @@ int handle__connect(struct mosquitto_db *db, struct mosquitto *context)
             goto handle_connect_error;
         }
         
-        log__printf(NULL, MOSQ_LOG_DEBUG, "[BPDU] [r(%s, %s), d(%s), o(%s, %s)]", recv_packet->root_port, recv_packet->root_pid, recv_packet->distance, recv_packet->origin_port, recv_packet->origin_pid);
+        log__printf(NULL, MOSQ_LOG_DEBUG, "[CONNECT] [r(%s:%s, %s), d(%s), o(%s:%s, %s)]", recv_packet->root_address, recv_packet->root_port, recv_packet->root_pid, recv_packet->distance, recv_packet->root_address, recv_packet->root_port, recv_packet->origin_pid);
         
         /* Store packet fields */ //TODO move down in the connect correct
 #ifdef WITH_BRIDGE        
-        if(update__stp_properties(db->stp, db->config->bridges, recv_packet)){
-            log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields.");
+        if(update__stp_properties(db, db->stp, db->config->bridges, recv_packet)){
+            log__printf(NULL, MOSQ_LOG_ERR, "Impossible to update STP fields. Check conf file");
         }
 #endif
     }

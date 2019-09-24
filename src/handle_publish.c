@@ -30,6 +30,7 @@ Contributors:
 #include "send_mosq.h"
 #include "sys_tree.h"
 #include "util_mosq.h"
+#include "util_list.h"
 
 
 int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
@@ -299,17 +300,22 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
     
 #ifdef WITH_BROKER
     if(strstr(topic, "SYS") == NULL){
-        int broker_id;
-        broker_id = atoi(context->id);
-        log__printf(NULL, MOSQ_LOG_DEBUG, "broker id %d", broker_id);
-        if(broker_id>1){
-            log__printf(NULL, MOSQ_LOG_DEBUG, "before read block ports");
-            if(db->config->bridges->block_ports){
+        BROKER broker;
+        broker.address = "192.168.1.9"; //TODO!
+        broker.port = atoi(context->id);
+        log__printf(NULL, MOSQ_LOG_DEBUG, "broker id %d", broker.port);
+        if(broker.port>1){
+            if(db->blocked_ports){
                 
-                PORT_LIST* current = db->config->bridges->block_ports;
+                PORT_LIST* current = db->blocked_ports;
                 
-                if(in_list(current, NULL, broker_id)){
-                    log__printf(NULL, MOSQ_LOG_INFO, "[RECEIVE] receive port (%d) is blocked", broker_id);
+                if(in_list(current, broker)){
+                    log__printf(NULL, MOSQ_LOG_INFO, "[RECEIVE] receive port (%d) is blocked", broker.port);
+                    goto process_bad_message;
+                } else if(in_list(db->designated_ports, broker) || (strcmp(broker.address, db->king_port.address) == 0 && broker.port == db->king_port.port)){
+                        //nothing to do
+                }else{
+                    log__printf(NULL, MOSQ_LOG_ERR, "[RECEIVE] receive port (%d) is NOT mapped", broker.port);
                     goto process_bad_message;
                 }
             }
