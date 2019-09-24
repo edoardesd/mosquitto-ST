@@ -34,6 +34,7 @@ Contributors:
 #include "read_handle.h"
 #include "send_mosq.h"
 #include "util_mosq.h"
+#include "util_list.h"
 
 int handle__pingreq(struct mosquitto *mosq)
 {
@@ -103,7 +104,7 @@ int handle__pingreqcomp(struct mosquitto_db *db, struct mosquitto *mosq)
         }
     }else{
         /* Now we are sure that the request is from a bridged broker */
-        log__printf(NULL, MOSQ_LOG_INFO, "Received PINGREQ COMP from %s", mosq->id);
+        log__printf(NULL, MOSQ_LOG_NOTICE, "Received PINGREQ COMP from %s", mosq->id);
     }
     
     

@@ -31,6 +31,7 @@ Contributors:
 #include "tls_mosq.h"
 #include "util_mosq.h"
 #include "will_mosq.h"
+#include "util_list.h"
 
 #ifdef WITH_WEBSOCKETS
 #  include <libwebsockets.h>

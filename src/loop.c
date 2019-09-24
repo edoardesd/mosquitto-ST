@@ -107,9 +107,9 @@ static void temp__expire_websockets_clients(struct mosquitto_db *db)
 int mosquitto_restart_stp(struct mosquitto_db *db, struct bridge_address *failed_address)
 {
 #ifdef WITH_BROKER
+    struct mosquitto *context;
     int my_pid;
     int i = 0;
-    struct mosquitto *context;
     BROKER broker;
     
     if(db->config->bridges){
@@ -122,7 +122,7 @@ int mosquitto_restart_stp(struct mosquitto_db *db, struct bridge_address *failed
         /* Clean ports */
         db->designated_ports = empty_list(db->designated_ports);
         db->blocked_ports = empty_list(db->blocked_ports);
-        db->king_port.address = NULL;
+        db->king_port.address = "";
         db->king_port.port = 0;
         
         log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d", db->king_port.address, db->king_port.port);
@@ -142,7 +142,6 @@ int mosquitto_restart_stp(struct mosquitto_db *db, struct bridge_address *failed
             broker.address = context->bridge->addresses->address;
             broker.port = context->bridge->addresses->port;
             db->designated_ports = add(db->designated_ports, broker);
-            context->bridge->convergence = false;
         
             log__printf(NULL, MOSQ_LOG_NOTICE, "Sending ping request (STP) to address %s:%d", context->bridge->addresses[context->bridge->cur_address].address, context->bridge->addresses[context->bridge->cur_address].port);
             send__pingreq(db->stp, context);

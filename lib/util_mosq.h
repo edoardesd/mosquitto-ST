@@ -35,10 +35,12 @@ FILE *mosquitto__fopen(const char *path, const char *mode, bool restrict_read);
 
 #ifdef WITH_BROKER
 int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, struct mosquitto__bridge *bridge, struct mosquitto__bpdu__packet *packet);
+int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct mosquitto__bridge *context, struct mosquitto__bpdu__packet *packet);
 int set__ports(struct mosquitto__stp *status, int msg_root_port, int msg_root_pid, int msg_distance, int msg_port, int msg_pid);
 struct mosquitto__bpdu__packet *find_bridge(struct mosquitto_db *db, struct mosquitto__bpdu__packet *packet, int origin_port, int i);
 bool check_repeated(struct mosquitto__bpdu__packet *stored_bpdu, struct mosquitto__bpdu__packet *packet);
 struct mosquitto__bpdu__packet* init__bpdu(struct mosquitto_db *db, struct mosquitto__bpdu__packet *bpdu);
+bool check_convergence(struct mosquitto_db *db, PORT_LIST *old_des, PORT_LIST *old_block, BROKER old_k);
 
 #endif
 

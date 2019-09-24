@@ -131,7 +131,8 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
     init_list(&(db->blocked_ports), "BLOCK");
     init_list(&(db->designated_ports), "Designated");
     db->king_port.port = 0;
-    db->king_port.address = NULL;
+    db->king_port.address = "";
+    db->convergence = false;
     
 	db->bridges = NULL;
 	db->bridge_count = 0;

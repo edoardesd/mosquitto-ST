@@ -107,7 +107,6 @@ int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
     broker.address = bridge->addresses->address;
     broker.port = bridge->addresses->port;
     db->designated_ports = add(db->designated_ports, broker);
-    bridge->convergence = false;
     
 #ifdef WITH_TLS
 	new_context->tls_cafile = new_context->bridge->tls_cafile;

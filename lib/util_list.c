@@ -122,4 +122,42 @@ PORT_LIST* find_and_delete(PORT_LIST *head, BROKER broker)
     return head;
 }
 
+PORT_LIST* copy_list(PORT_LIST *start1)
+{
+    PORT_LIST* start2=NULL, *previous=NULL;
+    
+    while(start1!=NULL)
+    {
+        PORT_LIST* temp = (PORT_LIST*) malloc(sizeof (PORT_LIST));
+        temp->broker=start1->broker;
+        temp->next=NULL;
+        
+        if(start2==NULL)
+        {
+            start2=temp;
+            previous=temp;
+        }
+        else
+        {
+            previous->next=temp;
+            previous=temp;
+        }
+        start1=start1->next;
+    }
+    return start2;
+}
+
+bool are_identical(PORT_LIST *a, PORT_LIST *b)
+{
+    while (a != NULL && b != NULL){
+        if (a->broker.port != b->broker.port && strcmp(a->broker.address, b->broker.address)!=0){
+            return false;
+        }
+
+        a = a->next;
+        b = b->next;
+    }
+    return (a == NULL && b == NULL);
+}
+
 #endif

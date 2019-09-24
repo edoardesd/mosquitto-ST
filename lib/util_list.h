@@ -23,6 +23,9 @@ PORT_LIST* empty_list(PORT_LIST *head);
 bool in_list(PORT_LIST* head, BROKER brk);
 void print_list(PORT_LIST* head, char *type);
 PORT_LIST* find_and_delete(PORT_LIST *head, BROKER broker);
+PORT_LIST* copy_list(PORT_LIST *start1);
+bool are_identical(PORT_LIST *a, PORT_LIST *b);
+
 #endif
 
 #endif /* util_list_h */
