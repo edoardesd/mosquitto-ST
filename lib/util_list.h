@@ -17,11 +17,12 @@
 
 #ifdef WITH_BROKER
 int init_list(PORT_LIST** head, char *type);
-PORT_LIST* add(PORT_LIST* node, BROKER broker);
-PORT_LIST* delete_node(PORT_LIST* head, BROKER broker);
+PORT_LIST* add(PORT_LIST* node, BROKER brk);
+PORT_LIST* delete_node(PORT_LIST* head, BROKER brk);
 PORT_LIST* empty_list(PORT_LIST *head);
-bool in_list(PORT_LIST* head, char *address, int port);
+bool in_list(PORT_LIST* head, BROKER brk);
 void print_list(PORT_LIST* head, char *type);
+PORT_LIST* find_and_delete(PORT_LIST *head, BROKER broker);
 #endif
 
 #endif /* util_list_h */
