@@ -44,6 +44,7 @@ Contributors:
 #include "memory_mosq.h"
 #include "tls_mosq.h"
 #include "util_mosq.h"
+#include "util_list.h"
 #include "mqtt_protocol.h"
 
 struct config_recurse {
@@ -327,11 +328,6 @@ void config__cleanup(struct mosquitto__config *config)
 		mosquitto__free(config->listeners);
 	}
 #ifdef WITH_BRIDGE
-    /* Initialise lists for the STP ports */
-    init_list(&(config->bridges->block_ports), "BLOCK");
-    init_list(&(config->bridges->designated_ports), "Designated");
-    config->bridges->root_port = 0;
-    
 	if(config->bridges){
 		for(i=0; i<config->bridge_count; i++){
 			mosquitto__free(config->bridges[i].name);

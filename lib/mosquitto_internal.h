@@ -155,7 +155,6 @@ struct broker__resources{
 
 /* Static information about a broker */
 struct broker__info{
-    char *_id;
     char *address;
     int port;
     struct broker__resources *res;
@@ -164,20 +163,16 @@ struct broker__info{
 struct mosquitto__stp{
     struct broker__info *my;
     struct broker__info *my_root;
-    char *my_id;
-    char *root_id;
     int distance;
 };
 
 struct mosquitto__bpdu__packet{
     char *origin_address;
     char *origin_port;
-    char *origin_id;
     char *origin_pid;
 
     char *root_address;
     char *root_port;
-    char *root_id;
     char *root_pid;
     
     char *distance;

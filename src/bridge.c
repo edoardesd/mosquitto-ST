@@ -41,6 +41,8 @@ Contributors:
 #include "tls_mosq.h"
 #include "util_mosq.h"
 #include "will_mosq.h"
+#include "util_list.h"
+#include "util_string.h"
 
 #ifdef WITH_BRIDGE
 
@@ -56,7 +58,9 @@ char* char__pid(){
 int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 {
 	struct mosquitto *new_context = NULL;
+    struct mosquitto__bpdu__packet *bpdu = NULL;
 	struct mosquitto **bridges;
+    BROKER broker;
 	char *local_id;
 
 	assert(db);
@@ -84,6 +88,27 @@ int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 	new_context->username = new_context->bridge->remote_username;
 	new_context->password = new_context->bridge->remote_password;
 
+    /* Initialize BPDU */
+    /* Alloc memory for old bpdu packet */
+    
+    bpdu = mosquitto__calloc(1, sizeof(struct mosquitto__bpdu__packet));
+    if(!bpdu){
+        log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
+        return MOSQ_ERR_NOMEM;
+    }
+    
+    bridge->last_bpdu = init__bpdu(db, bpdu);
+    if(!bridge->last_bpdu){
+        return MOSQ_ERR_STP;
+    }
+    
+    //log__printf(NULL, MOSQ_LOG_DEBUG, "BDPU CHECK r%s:%s-%s o%s:%s-%s", bridge->last_bpdu->root_address, bridge->last_bpdu->root_port, bridge->last_bpdu->root_pid, bridge->last_bpdu->origin_address, bridge->last_bpdu->origin_port, bridge->last_bpdu->origin_pid);
+    
+    broker.address = bridge->addresses->address;
+    broker.port = bridge->addresses->port;
+    db->designated_ports = add(db->designated_ports, broker);
+    bridge->convergence = false;
+    
 #ifdef WITH_TLS
 	new_context->tls_cafile = new_context->bridge->tls_cafile;
 	new_context->tls_capath = new_context->bridge->tls_capath;
@@ -329,9 +354,6 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 		db__messages_delete(db, context);
 	}
 
-    /* Move up in the bridge_new() function and create a proper function.
-    */
-
 	/* Delete all local subscriptions even for clean_start==false. We don't
 	 * remove any messages and the next loop carries out the resubscription
 	 * anyway. This means any unwanted subs will be removed.
@@ -340,7 +362,7 @@ int bridge__connect(struct mosquitto_db *db, struct mosquitto *context)
 
 	for(i=0; i<context->bridge->topic_count; i++){
 		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
-			log__printf(NULL, MOSQ_LOG_NOTICE, "[BRIDGE] %s trying to create a local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
+			//log__printf(NULL, MOSQ_LOG_NOTICE, "[BRIDGE] %s trying to create a local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
 			if(sub__add(db,
 						context,
 						context->bridge->topics[i].local_topic,

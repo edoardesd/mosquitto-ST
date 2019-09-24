@@ -26,6 +26,11 @@ Contributors:
 #include "sys_tree.h"
 #include "time_mosq.h"
 #include "util_mosq.h"
+#include "stp_mosq.h"
+#include "ip_addr.h"
+#include "packet_mosq.h"
+#include "util_list.h"
+#include "util_string.h"
 
 static unsigned long max_inflight_bytes = 0;
 static int max_queued = 100;
@@ -120,7 +125,14 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
 	db->contexts_by_id = NULL;
 	db->contexts_by_sock = NULL;
 	db->contexts_for_free = NULL;
+    db->ip_address = get__hostIP();
 #ifdef WITH_BRIDGE
+    /* Initialise lists for the STP ports */
+    init_list(&(db->blocked_ports), "BLOCK");
+    init_list(&(db->designated_ports), "Designated");
+    db->king_port.port = 0;
+    db->king_port.address = NULL;
+    
 	db->bridges = NULL;
 	db->bridge_count = 0;
     rc = info__init(db, config->default_listener.port, pid);
@@ -148,32 +160,18 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
 	return MOSQ_ERR_SUCCESS;
 }
 
-int stp__init(struct mosquitto__stp *stp, int port, int pid)
-{
-    log__printf(NULL, MOSQ_LOG_DEBUG, "Init STP");
-    if(stp){
-        stp->distance = 0;
-        stp->my->_id = NULL;
-        stp->my->address = NULL;
-        stp->my->port = port;
-        stp->my->res->pid = pid;
-        stp->my_root->_id = NULL;
-        stp->my_root->address = NULL;
-        stp->my_root->port = port;
-        stp->my_root->res->pid = pid;
-        return MOSQ_ERR_SUCCESS;
-    }
-    return MOSQ_ERR_NOMEM;
-}
-
-void print_stp(struct mosquitto__stp *stp)
-{
-    log__printf(NULL, MOSQ_LOG_DEBUG, "d%d r(%d-%d) o(%d-%d)", stp->distance, stp->my_root->port, stp->my_root->res->pid, stp->my->port, stp->my->res->pid);
-}
-
 int info__init(struct mosquitto_db *db, int port, int pid)
 {
     struct mosquitto__stp *stp = NULL;
+    //struct mosquitto__bpdu__packet *bpdu = NULL;
+    char *pid_c, *port_c;
+    
+    port_c = convert_integer(port);
+    pid_c = convert_integer(pid);
+    //hostname = create_full_hostname(db->ip_address, port);
+    
+    /* Alloc memory for stp values */
+    // Probably not needed
     stp = mosquitto__calloc(1, sizeof(struct mosquitto__stp));
     if(!stp){
         log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
@@ -189,8 +187,16 @@ int info__init(struct mosquitto_db *db, int port, int pid)
     stp->my_root->res = alloc__res(pid);
     if(!stp->my_root->res) return MOSQ_ERR_NOMEM;
     
-    stp__init(stp, port, pid);
-    db->stp = stp;
+    /* Cheat on PORT 1888 */
+    if(port == 1888){
+        log__printf(NULL, MOSQ_LOG_DEBUG, "Change broker with port %d to a very low PID", port);
+        pid = 100;
+    }
+    
+    db->stp = stp__init(stp, db->ip_address, port, pid);
+    if(!db->stp){
+        return MOSQ_ERR_NOMEM;
+    }
     
     return MOSQ_ERR_SUCCESS;
 }
