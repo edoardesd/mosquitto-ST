@@ -303,7 +303,6 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
         BROKER broker;
         broker.address = "192.168.1.9"; //TODO!
         broker.port = atoi(context->id);
-        log__printf(NULL, MOSQ_LOG_DEBUG, "broker id %d", broker.port);
         if(broker.port>1){
             if(db->blocked_ports){
                 

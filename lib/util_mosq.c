@@ -164,14 +164,14 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
         update_stp(stp, packet);
         //set root port
         //WHAT TO DO WITH OLD ROOT? DP?
-        db->designated_ports = find_and_delete(db->designated_ports, broker_root);
-        db->blocked_ports = find_and_delete(db->blocked_ports, broker_root);
+        db->designated_ports = find_and_delete(db->designated_ports, broker_origin);
+        db->blocked_ports = find_and_delete(db->blocked_ports, broker_origin);
         
-        db->king_port = broker_root;
+        db->king_port = broker_origin;
         context->port_status = ROOT_PORT;
         
         //TODO: send new ping to designated ports?
-        ping_everyone_except(db);
+        //ping_everyone_except(db);
         return MOSQ_ERR_SUCCESS;
     }
     
@@ -196,10 +196,10 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
             //WHAT TO DO WITH OLD ROOT? DP?
             update_stp(stp, packet);
             //set root port
-            db->designated_ports = find_and_delete(db->designated_ports, broker_root);
-            db->blocked_ports = find_and_delete(db->blocked_ports, broker_root);
+            db->designated_ports = find_and_delete(db->designated_ports, broker_origin);
+            db->blocked_ports = find_and_delete(db->blocked_ports, broker_origin);
             
-            db->king_port = broker_root;
+            db->king_port = broker_origin;
             context->port_status = ROOT_PORT;
             
             //TODO: send new ping to designated ports?
