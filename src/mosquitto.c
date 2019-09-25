@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
 		rc = 1;
 		return rc;
 	}
-	log__printf(NULL, MOSQ_LOG_INFO, "mosquitto crazy version XCODE %s starting with PID %d", VERSION, process_pid);
+	log__printf(NULL, MOSQ_LOG_INFO, "mosquitto crazy version XCODE %s starting with PID %d and IP address %s", VERSION, process_pid, int_db.ip_address);
 	if(int_db.config_file){
 		log__printf(NULL, MOSQ_LOG_INFO, "Config loaded from %s.", int_db.config_file);
 	}else{
