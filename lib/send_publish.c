@@ -67,8 +67,6 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
         //= (int) strtol(source_id, (char **)NULL, 10);
     source_id[4] = '\0';
     src_id = (int) strtol(source_id, (char **)NULL, 10);
-
-    log__printf(NULL, MOSQ_LOG_DEBUG, "src id %d", src_id);
     
 #endif
 #endif
