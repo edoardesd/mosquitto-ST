@@ -46,7 +46,7 @@ int send__pingreq(struct mosquitto_db *db, struct mosquitto *mosq)
 int send__pingreq(struct mosquitto *mosq)
 #endif
 {
-    struct mosquitto__bridge * context;
+    //struct mosquitto__bridge * context;
 	int rc;
     bool send_simple = false;
 	assert(mosq);

@@ -1341,9 +1341,9 @@ int config__read_file_core(struct mosquitto__config *config, bool reload, struct
 						return MOSQ_ERR_INVAL;
 					}
 					if(conf__parse_int(&token, "keepalive_interval", &cur_bridge->keepalive, saveptr)) return MOSQ_ERR_INVAL;
-					if(cur_bridge->keepalive < 5){
-						log__printf(NULL, MOSQ_LOG_NOTICE, "keepalive interval too low, using 5 seconds.");
-						cur_bridge->keepalive = 5;
+					if(cur_bridge->keepalive < 1){
+						log__printf(NULL, MOSQ_LOG_NOTICE, "keepalive interval too low, using 1 second.");
+						cur_bridge->keepalive = 1;
 					}
 #else
 					log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Bridge support not available.");
