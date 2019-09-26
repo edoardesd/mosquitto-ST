@@ -119,7 +119,7 @@ int ping_everyone_except(struct mosquitto_db *db)
         
         if(strcmp(context->bridge->addresses[context->bridge->cur_address].address, db->king_port.address) != 0 || context->bridge->addresses[context->bridge->cur_address].port != db->king_port.port){
             log__printf(NULL, MOSQ_LOG_NOTICE, "Sending NEW ROOT info to address %s:%d", context->bridge->addresses[context->bridge->cur_address].address, context->bridge->addresses[context->bridge->cur_address].port);
-            send__pingreq(db, context);
+            //send__pingreq(db, context);
         }
     }
     return MOSQ_ERR_SUCCESS;
@@ -203,7 +203,7 @@ int stp__algorithm(struct mosquitto_db *db, struct mosquitto__stp *stp, struct m
             context->port_status = ROOT_PORT;
             
             //TODO: send new ping to designated ports?
-            ping_everyone_except(db);
+            //ping_everyone_except(db);
             return MOSQ_ERR_SUCCESS;
             
         }
