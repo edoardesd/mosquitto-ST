@@ -312,7 +312,8 @@ int handle__publish(struct mosquitto_db *db, struct mosquitto *context)
                     log__printf(NULL, MOSQ_LOG_INFO, "[RECEIVE] receive port (%d) is blocked", broker.port);
                     goto process_bad_message;
                 }
-                if(in_list(db->designated_ports, broker) || (strcmp(broker.address, db->king_port.address) == 0 && broker.port == db->king_port.port)){
+                if(in_list(db->designated_ports, broker) ||  broker.port == db->king_port.port){
+                //if(in_list(db->designated_ports, broker) || (strcmp(broker.address, db->king_port.address) == 0 && broker.port == db->king_port.port)){
                         //nothing to do
                 }else{
                     log__printf(NULL, MOSQ_LOG_ERR, "[RECEIVE] receive port (%s:%d) is NOT mapped", broker.address, broker.port);

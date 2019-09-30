@@ -55,7 +55,8 @@ bool in_list(PORT_LIST* head, BROKER brk)
 {
     PORT_LIST* current = head;
     while(current!= NULL){
-        if(strcmp(current->broker.address, brk.address) == 0 && current->broker.port == brk.port){
+        if(current->broker.port == brk.port){
+        //if(strcmp(current->broker.address, brk.address) == 0 && current->broker.port == brk.port){
             return true;
         }
         current = current->next;
