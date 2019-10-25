@@ -179,6 +179,7 @@ int connect__on_authorised(struct mosquitto_db *db, struct mosquitto *context, v
 
 	if(db->config->connection_messages == true){
 		if(context->is_bridge){
+            db->convergence = false;
 			if(context->username){
 				log__printf(NULL, MOSQ_LOG_NOTICE, "New bridge connected from %s as %s (p%d, c%d, k%d, u'%s').",
 						context->address, context->id, context->protocol, context->clean_start, context->keepalive, context->username);

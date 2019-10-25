@@ -38,6 +38,37 @@ void print_list(PORT_LIST* head, char *type)
     fprintf(stdout, "\n");
 }
 
+void init_buf(char *buf, size_t size){
+    int i;
+    for(i=0; i<size; i++){
+        buf[i] = i + '0';
+    }
+}
+char *print_all_lists(PORT_LIST* designated, PORT_LIST* blocked, BROKER root)
+{
+    int BUFSIZE = 2000;
+    char *buf;
+    buf = (char *) malloc(sizeof(char) * BUFSIZE);
+    //init_buf(buf, BUFSIZE);
+    
+    PORT_LIST * temp_d;
+    PORT_LIST * temp_b;
+
+
+    for (temp_d = designated; temp_d; temp_d = temp_d->next){
+        sprintf(buf+ strlen(buf), " %s:%d,", temp_d->broker.address, temp_d->broker.port);
+    }
+    sprintf(buf+ strlen(buf),  " - ");
+    
+    for (temp_b = blocked; temp_b; temp_b = temp_b->next){
+        sprintf(buf+ strlen(buf), " %s:%d,", temp_b->broker.address, temp_b->broker.port);
+    }
+    sprintf(buf+strlen(buf), " - ");
+    sprintf(buf+ strlen(buf), " %s:%d", root.address, root.port);
+
+    return buf;
+}
+
 PORT_LIST* add(PORT_LIST* node, BROKER brk)
 {
     PORT_LIST* temp = (PORT_LIST*) malloc(sizeof (PORT_LIST));

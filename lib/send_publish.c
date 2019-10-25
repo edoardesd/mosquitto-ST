@@ -167,7 +167,7 @@ int send__publish(struct mosquitto *mosq, uint16_t mid, const char *topic, uint3
             print_list(db->blocked_ports, "BLOCK from send");
             print_list(db->designated_ports, "DES from send");
             log__printf(NULL, MOSQ_LOG_INFO, "ROOT PORT %s:%d", db->king_port.address, db->king_port.port);
-
+            log__printf(NULL, MOSQ_LOG_INFO, "--> %s", print_all_lists(db->designated_ports, db->blocked_ports, db->king_port));
             //print_list(db->config->bridges->root_ports, "ROOT from send");
 
             if(in_list(db->blocked_ports, broker)){

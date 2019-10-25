@@ -85,6 +85,7 @@ int bridge__new(struct mosquitto_db *db, struct mosquitto__bridge *bridge)
 	new_context->bridge = bridge;
 	new_context->is_bridge = true;
     bridge->is_connected = false;
+    bridge->is_reached = false;
 
 	new_context->username = new_context->bridge->remote_username;
 	new_context->password = new_context->bridge->remote_password;

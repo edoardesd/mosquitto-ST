@@ -22,6 +22,7 @@ PORT_LIST* delete_node(PORT_LIST* head, BROKER brk);
 PORT_LIST* empty_list(PORT_LIST *head);
 bool in_list(PORT_LIST* head, BROKER brk);
 void print_list(PORT_LIST* head, char *type);
+char *print_all_lists(PORT_LIST* designated, PORT_LIST* blocked, BROKER root);
 PORT_LIST* find_and_delete(PORT_LIST *head, BROKER broker);
 PORT_LIST* copy_list(PORT_LIST *start1);
 bool are_identical(PORT_LIST *a, PORT_LIST *b);

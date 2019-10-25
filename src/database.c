@@ -133,7 +133,7 @@ int db__open(struct mosquitto__config *config, struct mosquitto_db *db, int pid)
     db->king_port.port = 0;
     db->king_port.address = "";
     db->convergence = false;
-    
+    db->start_time = time(0);
 	db->bridges = NULL;
 	db->bridge_count = 0;
     rc = info__init(db, config->default_listener.port, pid);

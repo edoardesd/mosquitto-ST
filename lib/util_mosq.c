@@ -333,12 +333,15 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, 
                 log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d", db->king_port.address, db->king_port.port);
                 print_list(db->designated_ports, "DESIGNATED");
                 print_list(db->blocked_ports, "BLOCK");
-                
+                log__printf(NULL, MOSQ_LOG_INFO, "--> %s", print_all_lists(db->designated_ports, db->blocked_ports, db->king_port));
+
                 if(check_convergence(db, old_designated, old_blocked, old_king)){
                     db->convergence = true;
                 }else{
                     db->convergence = false;
+                    bridge->is_reached = false;
                 }
+                
                 if(old_convergence && db->convergence){
                     conv_reached = true;
                     for(int i=0; i<db->config->bridge_count; i++){
@@ -346,8 +349,11 @@ int update__stp_properties(struct mosquitto_db *db, struct mosquitto__stp *stp, 
                             conv_reached = false;
                         }
                     }
-                    if(conv_reached){
-                        log__printf(NULL, MOSQ_LOG_INFO, "Convergence REACHED");
+                    if(!bridge->is_reached){
+                        if(conv_reached){
+                            log__printf(NULL, MOSQ_LOG_INFO, "Convergence REACHED");
+                            bridge->is_reached = true;
+                        }
                     }
                 }
                 return MOSQ_ERR_SUCCESS;

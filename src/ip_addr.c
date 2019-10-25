@@ -70,5 +70,6 @@ char *get__hostIP()
     IPbuffer = inet_ntoa(*((struct in_addr*)
                            host_entry->h_addr_list[0]));
 
+    IPbuffer = "127.0.0.1";
     return IPbuffer;
 }

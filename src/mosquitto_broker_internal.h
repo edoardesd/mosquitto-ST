@@ -442,6 +442,7 @@ struct mosquitto_db{
     PORT_LIST *designated_ports;
     BROKER king_port;
     bool convergence;
+    time_t start_time;
 #endif
 	struct clientid__index_hash *clientid_index_hash;
 	struct mosquitto_msg_store *msg_store;
@@ -518,6 +519,7 @@ struct mosquitto__bridge{
 	char *custom_message; //unused
     struct mosquitto__bpdu__packet *last_bpdu;
     bool is_connected;
+    bool is_reached;
     
 	char *remote_clientid;
 	char *remote_username;

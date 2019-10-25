@@ -146,6 +146,8 @@ int mosquitto_restart_stp(struct mosquitto_db *db, struct bridge_address *failed
         log__printf(NULL, MOSQ_LOG_DEBUG, "\nList ROOT: %s:%d", db->king_port.address, db->king_port.port);
         print_list(db->designated_ports, "DESIGNATED");
         print_list(db->blocked_ports, "BLOCK");
+        log__printf(NULL, MOSQ_LOG_INFO, "--> %s", print_all_lists(db->designated_ports, db->blocked_ports, db->king_port));
+
     }
     return MOSQ_ERR_SUCCESS;
 }
@@ -725,6 +727,8 @@ void do_disconnect(struct mosquitto_db *db, struct mosquitto *context, int reaso
                                 if(strcmp(db->config->bridges[i].local_clientid, id) == 0){
                                     log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s:%d fails", db->config->bridges[i].addresses->address, db->config->bridges[i].addresses->port);
                                     //start again as a root
+                                    db->config->bridges[i].is_reached = false;
+                                    db->convergence = false;
                                     mosquitto_restart_stp(db, db->config->bridges[i].addresses);
 
                                 }
