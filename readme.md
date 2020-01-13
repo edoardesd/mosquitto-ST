@@ -77,4 +77,4 @@ And so on...
 ## Future works
 - Develop a script which creates valid configuration files
 - Automatic discovery of MQTT-SN brokers
-- Create a tree for each topic in the syste 
+- Create a tree for each topic in the system 
