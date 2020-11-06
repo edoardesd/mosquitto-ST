@@ -24,6 +24,14 @@ Installing MQTT-ST is as installing Mosquitto.
 See the official documentation at <https://mosquitto.org/download/> for details on installing binaries for
 various platforms. 
 
+### Installing on MacOSX
+- `mkdir build`
+- `cd build`
+- `cmake -DCMAKE_C_COMPILER=/Library/Developer/CommandLineTools/usr/bin/cc -DCMAKE_CXX_COMPILER=/Library/Developer/CommandLineTools/usr/bin/c++ -DCMAKE_SYSTEM_NAME=Darwin -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DWITH_TLS=OFF -DDOCUMENTATION=OFF ..`
+- `make install`
+
+It is important to set the correct C compiler and disable TLS.
+
 ## Cluster quick start
 
 Also the quick start for a single broker is the same as Mosquitto. More information at: <https://github.com/eclipse/mosquitto#quick-start>.
