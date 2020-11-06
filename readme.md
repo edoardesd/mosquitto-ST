@@ -32,6 +32,18 @@ various platforms.
 
 It is important to set the correct C compiler and disable TLS.
 
+#### XCode setup (for developer)
+- Set in the `External Build Tool Configuration`: 
+  + Build Tool: `/usr/local/bin/cmake`
+  + Arguments: the cmake arguments (.. included)
+  + Directory with build
+  + [ x ] Pass build settings in environment
+- Enable automatic `make install`
+  + Edit `Run Scheme`
+  + Executable: `bash` (in `/bin` folder)
+  + Arguments passed on launch: `-c "make install"` 
+  + Options: use custom working directory (build directory)
+
 ## Cluster quick start
 
 Also the quick start for a single broker is the same as Mosquitto. More information at: <https://github.com/eclipse/mosquitto#quick-start>.
