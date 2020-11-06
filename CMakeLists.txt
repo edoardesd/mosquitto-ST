@@ -6,12 +6,16 @@
 
 set(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	set(CMAKE_MACOSX_RPATH 1)
+endif()
+
 project(mosquitto)
 
 cmake_minimum_required(VERSION 2.8)
 # Only for version 3 and up. cmake_policy(SET CMP0042 NEW)
 
-set (VERSION 1.6.3)
+set (VERSION 2)
 
 add_definitions (-DCMAKE -DVERSION=\"${VERSION}\")
 
