@@ -8,6 +8,7 @@ It based on the open source Mosquitto broker implementation. Our version mainly 
 
 See the following links for more information on MQTT-ST:
 
+- IEEE paper: <https://ieeexplore.ieee.org/document/9149046>
 - Arxiv paper: <https://arxiv.org/pdf/1911.07622.pdf>
 - Source code Mosquitto repository: <https://github.com/eclipse/mosquitto>
 - Source code repository: <https://github.com/edoardesd/mosquitto>
