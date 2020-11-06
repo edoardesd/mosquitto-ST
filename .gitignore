@@ -88,3 +88,7 @@ lib/cpp/Makefile
 man/Makefile
 src/Makefile
 lib/mem_avail
+
+.DS_Store
+mosquitto-ST.xcodeproj*
+mosquitto-ST.xcodeproj/*
