@@ -1,4 +1,4 @@
-MQTT-ST: a Mosquitto fork
+MQTT-ST: a Distributed Mosquitto Evolution
 =================
 
 MQTT-ST is a MQTT broker which is able to create a distribute architecture of brokers, organized thorugh a spanning tree.
